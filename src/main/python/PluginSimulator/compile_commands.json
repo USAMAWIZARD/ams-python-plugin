@@ -1,0 +1,18 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-ggdb",
+      "-flto",
+      "-c",
+      "-I",
+      "/usr/include/python3.13/",
+      "-o",
+      "./build/pluginsim.o",
+      "pluginsim.c"
+    ],
+    "directory": "/home/usama/learn/AntMedia/plugins/SamplePlugin/src/main/python/PluginSimulator",
+    "file": "/home/usama/learn/AntMedia/plugins/SamplePlugin/src/main/python/PluginSimulator/pluginsim.c",
+    "output": "/home/usama/learn/AntMedia/plugins/SamplePlugin/src/main/python/PluginSimulator/build/pluginsim.o"
+  }
+]
