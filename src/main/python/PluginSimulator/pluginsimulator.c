@@ -14,11 +14,17 @@ extern void aquirejil();
 extern void streamStarted(const char *streamid);
 extern void streamFinished(const char *streamid);
 extern void onVideoFrame(const char *streamid, AVFrame *avframe);
+extern void init_python_plugin_state();
 
 int main() {
   init_py_and_wrapperlib();
   char *test = "stream1";
   releasejil();
+
+  aquirejil();
+  init_python_plugin_state();
+  releasejil();
+
   aquirejil();
   streamStarted(test);
   releasejil();
@@ -31,8 +37,6 @@ int main() {
     printf("cannot open input file\n");
 
   avformat_find_stream_info(avformatctx, NULL);
-
-  printf("tseetst\n");
 
   for (int i = 0; i < avformatctx->nb_streams; i++) {
     AVStream *stream = avformatctx->streams[i];
@@ -55,6 +59,7 @@ int main() {
     AVFrame *pFrame = av_frame_alloc();
 
     const char *streamid = "stream1";
+    int i = 10;
     while (av_read_frame(avformatctx, pPacket) >= 0) {
       int ret = avcodec_send_packet(codec_ctx, pPacket);
       if (ret < 0)
@@ -63,6 +68,10 @@ int main() {
       aquirejil();
       onVideoFrame(streamid, pFrame);
       releasejil();
+      if (i == 0) {
+        exit(0);
+      }
+      /*i--;*/
     }
   }
 
