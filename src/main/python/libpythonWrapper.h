@@ -28,7 +28,9 @@
   #define DL_IMPORT(_T) _T
 #endif
 
-__PYX_EXTERN_C PyObject *avframe_to_rgb(struct AVFrame *, int, int);
+__PYX_EXTERN_C void init_python_plugin_state(void);
+__PYX_EXTERN_C void init_restream(PyObject *);
+__PYX_EXTERN_C void uninit_restream(PyObject *);
 __PYX_EXTERN_C void streamStarted(char const *);
 __PYX_EXTERN_C void streamFinished(char const *);
 __PYX_EXTERN_C void onVideoFrame(char const *, struct AVFrame *);

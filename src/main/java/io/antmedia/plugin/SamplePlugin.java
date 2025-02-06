@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.security.access.method.P;
 import org.springframework.stereotype.Component;
 
 import io.antmedia.AntMediaApplicationAdapter;
@@ -42,8 +43,15 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
     this.applicationContext = applicationContext;
     vertx = (Vertx) applicationContext.getBean("vertxCore");
 
+    if (!onlyCallforThisApps())
+      return;
+
     IAntMediaStreamHandler app = getApplication();
     app.addStreamListener(this);
+  }
+
+  public ApplicationContext getApplicationContext() {
+    return this.applicationContext;
   }
 
   public MuxAdaptor getMuxAdaptor(String streamId) {
@@ -58,9 +66,14 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
   }
 
   public void isPythonRunning() {
-    if (!NativeInterface.JNA_RTSP_SERVER.INSTANCE.Py_IsInitialized()) {
+    if (!NativeInterface.PY_WRAPPER.INSTANCE.Py_IsInitialized()) {
       logger.info("python context not running intializing new context");
-      NativeInterface.JNA_RTSP_SERVER.INSTANCE.init_py_and_wrapperlib();
+      NativeInterface.PY_WRAPPER.INSTANCE.init_py_and_wrapperlib();
+
+      NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+      NativeInterface.PY_WRAPPER.INSTANCE.init_python_plugin_state();
+      NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
+
       return;
     }
     logger.info("already running python context");
@@ -70,44 +83,48 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
   public void register(String streamId) {
     IAntMediaStreamHandler app = getApplication();
     app.addFrameListener(streamId, frameListener);
-    //app.addPacketListener(streamId, packetListener);
+    // app.addPacketListener(streamId, packetListener);
   }
 
   public IAntMediaStreamHandler getApplication() {
     return (IAntMediaStreamHandler) applicationContext.getBean(AntMediaApplicationAdapter.BEAN_NAME);
   }
 
+  public boolean onlyCallforThisApps() {
+    return this.applicationContext.getApplicationName().startsWith("/LiveApp");
+  }
+
   @Override
   public void streamStarted(String streamId) {
     isPythonRunning();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.streamStarted(streamId);
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.streamStarted(streamId);
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
     register(streamId);
   }
 
   @Override
   public void streamFinished(String streamId) {
     isPythonRunning();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.streamFinished(streamId);
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.streamFinished(streamId);
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
   }
 
   @Override
   public void joinedTheRoom(String roomId, String streamId) {
     isPythonRunning();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.joinedTheRoom(roomId, streamId);
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.joinedTheRoom(roomId, streamId);
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
   }
 
   @Override
   public void leftTheRoom(String roomId, String streamId) {
     isPythonRunning();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.leftTheRoom(roomId, streamId);
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.leftTheRoom(roomId, streamId);
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
   }
 
 }

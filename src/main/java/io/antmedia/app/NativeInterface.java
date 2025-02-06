@@ -6,14 +6,16 @@ import com.sun.jna.Callback;
 
 public class NativeInterface {
 
-  public static interface JNA_RTSP_SERVER extends Library {
+  public static interface PY_WRAPPER extends Library {
 
-    JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native-linux-x86_64/libpythonWrapper.cpython-313-x86_64-linux-gnu.so",
-        JNA_RTSP_SERVER.class);
+    PY_WRAPPER INSTANCE = Native.load("./lib/native-linux-x86_64/libpythonWrapper.cpython-313-x86_64-linux-gnu.so",
+        PY_WRAPPER.class);
 
     public boolean Py_IsInitialized();
 
     void init_py_and_wrapperlib();
+
+    void init_python_plugin_state();
 
     void PyImport_ImportModule(String moduletoimport);
 

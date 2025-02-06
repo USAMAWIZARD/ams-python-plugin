@@ -14,17 +14,17 @@ public class SampleFrameListener implements IFrameListener{
 
 	@Override
 	public AVFrame onAudioFrame(String streamId, AVFrame audioFrame) {
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.onAudioFrame(streamId, audioFrame.address());
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    //NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
+    //NativeInterface.JNA_RTSP_SERVER.INSTANCE.onAudioFrame(streamId, audioFrame.address());
+    //NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
 		return audioFrame;
 	}
 
 	@Override
 	public AVFrame onVideoFrame(String streamId, AVFrame videoFrame) {
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.onVideoFrame(streamId, videoFrame.address());
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.onVideoFrame(streamId, videoFrame.address());
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
 		return videoFrame;
 	}
 

@@ -1,10 +1,10 @@
 #include "libpythonWrapper.h"
 #include <Python.h>
 #include <assert.h>
+#include <libavformat/avformat.h>
 #include <libavutil/frame.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <libavformat/avformat.h>
 
 PyGILState_STATE gstate;
 
@@ -27,6 +27,4 @@ void init_py_and_wrapperlib() {
   printf("python initialization finished\n");
 }
 
-void yuv_to_rgb(AVFrame *avframe,uint8_t inplace){
-
-}
+void yuv_to_rgb(AVFrame *avframe, uint8_t inplace) {}

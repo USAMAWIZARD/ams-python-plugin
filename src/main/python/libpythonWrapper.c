@@ -1656,36 +1656,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
 /* GetBuiltinName.proto */
 static PyObject *__Pyx_GetBuiltinName(PyObject *name);
 
-/* PyObjectCall.proto */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw);
-#else
-#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
-#endif
-
-/* IncludeStringH.proto */
-#include <string.h>
-
-/* decode_c_string_utf16.proto */
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = 0;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
-}
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16LE(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = -1;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
-}
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16BE(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = 1;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
-}
-
-/* decode_c_string.proto */
-static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
-         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
-         const char* encoding, const char* errors,
-         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
-
 /* GetTopmostException.proto */
 #if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 static _PyErr_StackItem * __Pyx_PyErr_GetTopmostException(PyThreadState *tstate);
@@ -1709,6 +1679,68 @@ static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject 
 #else
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
 #endif
+
+/* PyObjectCall.proto */
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw);
+#else
+#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
+#endif
+
+/* SwapException.proto */
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_ExceptionSwap(type, value, tb)  __Pyx__ExceptionSwap(__pyx_tstate, type, value, tb)
+static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb);
+#else
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb);
+#endif
+
+/* PyFunctionFastCall.proto */
+#if CYTHON_FAST_PYCALL
+#if !CYTHON_VECTORCALL
+#define __Pyx_PyFunction_FastCall(func, args, nargs)\
+    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
+static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs);
+#endif
+#define __Pyx_BUILD_ASSERT_EXPR(cond)\
+    (sizeof(char [1 - 2*!(cond)]) - 1)
+#ifndef Py_MEMBER_SIZE
+#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
+#endif
+#if !CYTHON_VECTORCALL
+#if PY_VERSION_HEX >= 0x03080000
+  #include "frameobject.h"
+#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
+  #define __Pxy_PyFrame_Initialize_Offsets()
+  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
+#else
+  static size_t __pyx_pyframe_localsplus_offset = 0;
+  #include "frameobject.h"
+  #define __Pxy_PyFrame_Initialize_Offsets()\
+    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)),\
+     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
+  #define __Pyx_PyFrame_GetLocalsplus(frame)\
+    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
+#endif
+#endif
+#endif
+
+/* PyObjectCallMethO.proto */
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg);
+#endif
+
+/* PyObjectFastCall.proto */
+#define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs);
+
+/* PyObjectCallOneArg.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg);
 
 /* PyDictVersioning.proto */
 #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
@@ -1757,57 +1789,63 @@ static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_ve
 static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name);
 #endif
 
-/* PyFunctionFastCall.proto */
-#if CYTHON_FAST_PYCALL
-#if !CYTHON_VECTORCALL
-#define __Pyx_PyFunction_FastCall(func, args, nargs)\
-    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs);
-#endif
-#define __Pyx_BUILD_ASSERT_EXPR(cond)\
-    (sizeof(char [1 - 2*!(cond)]) - 1)
-#ifndef Py_MEMBER_SIZE
-#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
-#endif
-#if !CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03080000
-  #include "frameobject.h"
-#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
-  #ifndef Py_BUILD_CORE
-    #define Py_BUILD_CORE 1
-  #endif
-  #include "internal/pycore_frame.h"
-#endif
-  #define __Pxy_PyFrame_Initialize_Offsets()
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
+/* PySequenceContains.proto */
+static CYTHON_INLINE int __Pyx_PySequence_ContainsTF(PyObject* item, PyObject* seq, int eq) {
+    int result = PySequence_Contains(seq, item);
+    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
+}
+
+/* GetItemInt.proto */
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) :\
+    (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) :\
+               __Pyx_GetItemInt_Generic(o, to_py_func(i))))
+#define __Pyx_GetItemInt_List(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_List_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
+    (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
+                                                              int wraparound, int boundscheck);
+#define __Pyx_GetItemInt_Tuple(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_Tuple_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
+    (PyErr_SetString(PyExc_IndexError, "tuple index out of range"), (PyObject*)NULL))
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
+                                                              int wraparound, int boundscheck);
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
+                                                     int is_list, int wraparound, int boundscheck);
+
+/* ObjectGetItem.proto */
+#if CYTHON_USE_TYPE_SLOTS
+static CYTHON_INLINE PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key);
 #else
-  static size_t __pyx_pyframe_localsplus_offset = 0;
-  #include "frameobject.h"
-  #define __Pxy_PyFrame_Initialize_Offsets()\
-    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)),\
-     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
-  #define __Pyx_PyFrame_GetLocalsplus(frame)\
-    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
-#endif
-#endif
+#define __Pyx_PyObject_GetItem(obj, key)  PyObject_GetItem(obj, key)
 #endif
 
-/* PyObjectCallMethO.proto */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg);
-#endif
+/* IncludeStringH.proto */
+#include <string.h>
 
-/* PyObjectFastCall.proto */
-#define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs);
+/* decode_c_string_utf16.proto */
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = 0;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16LE(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = -1;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16BE(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = 1;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
 
-/* SwapException.proto */
-#if CYTHON_FAST_THREAD_STATE
-#define __Pyx_ExceptionSwap(type, value, tb)  __Pyx__ExceptionSwap(__pyx_tstate, type, value, tb)
-static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb);
-#else
-static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb);
-#endif
+/* decode_c_string.proto */
+static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
+         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
 
 /* PyIntBinop.proto */
 #if !CYTHON_COMPILING_IN_PYPY
@@ -1918,7 +1956,10 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 /* Module declarations from "libc.stdint" */
 
 /* Module declarations from "libpythonWrapper" */
-__PYX_EXTERN_C PyObject *avframe_to_rgb(struct AVFrame *, int, int); /*proto*/
+static PyObject *__pyx_v_16libpythonWrapper_streamidProcessDict = 0;
+__PYX_EXTERN_C void init_python_plugin_state(void); /*proto*/
+__PYX_EXTERN_C void init_restream(PyObject *); /*proto*/
+__PYX_EXTERN_C void uninit_restream(PyObject *); /*proto*/
 __PYX_EXTERN_C void streamStarted(char const *); /*proto*/
 __PYX_EXTERN_C void streamFinished(char const *); /*proto*/
 __PYX_EXTERN_C void onVideoFrame(char const *, struct AVFrame *); /*proto*/
@@ -1937,10 +1978,11 @@ int __pyx_module_is_main_libpythonWrapper = 0;
 /* #### Code section: global_var ### */
 static PyObject *__pyx_builtin_print;
 /* #### Code section: string_decls ### */
-static const char __pyx_k__7[] = "*";
-static const char __pyx_k__8[] = "?";
+static const char __pyx_k__6[] = "*";
+static const char __pyx_k__7[] = "?";
 static const char __pyx_k_np[] = "np";
 static const char __pyx_k_cv2[] = "cv2";
+static const char __pyx_k_copy[] = "copy";
 static const char __pyx_k_main[] = "__main__";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_spec[] = "__spec__";
@@ -1953,31 +1995,41 @@ static const char __pyx_k_merge[] = "merge";
 static const char __pyx_k_numpy[] = "numpy";
 static const char __pyx_k_print[] = "print";
 static const char __pyx_k_uint8[] = "uint8";
+static const char __pyx_k_write[] = "write";
 static const char __pyx_k_import[] = "__import__";
 static const char __pyx_k_resize[] = "resize";
-static const char __pyx_k_imwrite[] = "imwrite";
+static const char __pyx_k_flatten[] = "flatten";
+static const char __pyx_k_release[] = "release";
 static const char __pyx_k_reshape[] = "reshape";
-static const char __pyx_k_testing[] = "testing ";
-static const char __pyx_k_cvtColor[] = "cvtColor";
-static const char __pyx_k_testing1[] = "testing1 ";
-static const char __pyx_k_print_exc[] = "print_exc";
-static const char __pyx_k_traceback[] = "traceback";
+static const char __pyx_k_rectangle[] = "rectangle";
 static const char __pyx_k_frombuffer[] = "frombuffer";
-static const char __pyx_k_new_test_3[] = "new test 3";
-static const char __pyx_k_output_jpg[] = "output.jpg";
+static const char __pyx_k_frompython[] = "frompython";
+static const char __pyx_k_subprocess[] = "subprocess";
+static const char __pyx_k_VideoWriter[] = "VideoWriter";
+static const char __pyx_k_concatenate[] = "concatenate";
 static const char __pyx_k_INTER_LINEAR[] = "INTER_LINEAR";
 static const char __pyx_k_initializing[] = "_initializing";
-static const char __pyx_k_COLOR_YUV2RGB[] = "COLOR_YUV2RGB";
+static const char __pyx_k_class_getitem[] = "__class_getitem__";
 static const char __pyx_k_interpolation[] = "interpolation";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_on_audio_stream_info[] = "on audio stream info";
 static const char __pyx_k_on_video_stream_info[] = "on video stream info";
-static const char __pyx_k_on_stream_finished_in_python_pl[] = "-------------on stream finished in python plugin";
-static const char __pyx_k_on_stream_started_in_python_plu[] = "-------------on stream started in python plugin";
+static const char __pyx_k_done_writer_for_stream[] = "done writer for stream ";
+static const char __pyx_k_releasing_resources_for[] = "releasing resources for ";
+static const char __pyx_k_rtmp_127_0_0_1_WebRTCAppEE[] = "rtmp://127.0.0.1/WebRTCAppEE/";
+static const char __pyx_k_initializing_writer_for_stream[] = "initializing writer for stream";
+static const char __pyx_k_appsrc_videoconvert_video_x_raw[] = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=";
+static const char __pyx_k_on_stream_finished_in_python_pl[] = "-------------on stream finished in python plugin------------------";
+static const char __pyx_k_on_stream_started_in_python_plu[] = "-------------on stream started in python plugin---------------";
+static const char __pyx_k_Exception_occurred_in_init_pytho[] = "Exception occurred in init_python_plugin_state:";
+static const char __pyx_k_Exception_occurred_in_init_restr[] = "Exception occurred in init_restream :";
 static const char __pyx_k_Exception_occurred_in_onVideoFra[] = "Exception occurred in onVideoFrame:";
+static const char __pyx_k_Exception_occurred_in_streamFini[] = "Exception occurred in streamFinished:";
 static const char __pyx_k_Exception_occurred_in_streamStar[] = "Exception occurred in streamStarted:";
+static const char __pyx_k_Exception_occurred_in_uninit_res[] = "Exception occurred in uninit_restream :";
+static const char __pyx_k_failed_to_release_video_stream_n[] = "failed to release video stream no such stream exist ";
+static const char __pyx_k_on_audio_frame_recieved_in_pytho[] = "on audio frame recieved in python : ";
 static const char __pyx_k_on_audio_packet_recieved_in_pyth[] = "on audio packet recieved in python : ";
-static const char __pyx_k_on_video_frame_recieved_in_pytho[] = "on video frame recieved in python : ";
 static const char __pyx_k_on_video_packet_recieved_in_pyth[] = "on video packet recieved in python : ";
 /* #### Code section: decls ### */
 /* #### Code section: late_includes ### */
@@ -2013,55 +2065,73 @@ typedef struct {
   #endif
   #if CYTHON_USE_MODULE_STATE
   #endif
-  PyObject *__pyx_n_s_COLOR_YUV2RGB;
+  PyObject *__pyx_kp_s_Exception_occurred_in_init_pytho;
+  PyObject *__pyx_kp_s_Exception_occurred_in_init_restr;
   PyObject *__pyx_kp_s_Exception_occurred_in_onVideoFra;
+  PyObject *__pyx_kp_s_Exception_occurred_in_streamFini;
   PyObject *__pyx_kp_s_Exception_occurred_in_streamStar;
+  PyObject *__pyx_kp_s_Exception_occurred_in_uninit_res;
   PyObject *__pyx_n_s_INTER_LINEAR;
+  PyObject *__pyx_n_s_VideoWriter;
+  PyObject *__pyx_n_s__6;
   PyObject *__pyx_n_s__7;
-  PyObject *__pyx_n_s__8;
+  PyObject *__pyx_kp_s_appsrc_videoconvert_video_x_raw;
+  PyObject *__pyx_n_s_class_getitem;
   PyObject *__pyx_n_s_cline_in_traceback;
+  PyObject *__pyx_n_s_concatenate;
+  PyObject *__pyx_n_s_copy;
   PyObject *__pyx_n_s_count;
   PyObject *__pyx_n_s_cv2;
-  PyObject *__pyx_n_s_cvtColor;
   PyObject *__pyx_n_s_cypes;
+  PyObject *__pyx_kp_s_done_writer_for_stream;
   PyObject *__pyx_n_s_dtype;
+  PyObject *__pyx_kp_s_failed_to_release_video_stream_n;
+  PyObject *__pyx_n_s_flatten;
   PyObject *__pyx_n_s_frombuffer;
+  PyObject *__pyx_n_s_frompython;
   PyObject *__pyx_n_s_import;
-  PyObject *__pyx_n_s_imwrite;
   PyObject *__pyx_n_s_initializing;
+  PyObject *__pyx_kp_s_initializing_writer_for_stream;
   PyObject *__pyx_n_s_interpolation;
   PyObject *__pyx_n_s_main;
   PyObject *__pyx_n_s_merge;
   PyObject *__pyx_n_s_name;
-  PyObject *__pyx_kp_s_new_test_3;
   PyObject *__pyx_n_s_np;
   PyObject *__pyx_n_s_numpy;
+  PyObject *__pyx_kp_s_on_audio_frame_recieved_in_pytho;
   PyObject *__pyx_kp_s_on_audio_packet_recieved_in_pyth;
   PyObject *__pyx_kp_s_on_audio_stream_info;
   PyObject *__pyx_kp_s_on_stream_finished_in_python_pl;
   PyObject *__pyx_kp_s_on_stream_started_in_python_plu;
-  PyObject *__pyx_kp_s_on_video_frame_recieved_in_pytho;
   PyObject *__pyx_kp_s_on_video_packet_recieved_in_pyth;
   PyObject *__pyx_kp_s_on_video_stream_info;
-  PyObject *__pyx_kp_s_output_jpg;
   PyObject *__pyx_n_s_print;
-  PyObject *__pyx_n_s_print_exc;
+  PyObject *__pyx_n_s_rectangle;
+  PyObject *__pyx_n_s_release;
+  PyObject *__pyx_kp_s_releasing_resources_for;
   PyObject *__pyx_n_s_reshape;
   PyObject *__pyx_n_s_resize;
+  PyObject *__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE;
   PyObject *__pyx_n_s_spec;
+  PyObject *__pyx_n_s_subprocess;
   PyObject *__pyx_n_s_test;
-  PyObject *__pyx_kp_s_testing;
-  PyObject *__pyx_kp_s_testing1;
   PyObject *__pyx_n_s_time;
-  PyObject *__pyx_n_s_traceback;
   PyObject *__pyx_n_s_uint8;
+  PyObject *__pyx_n_s_write;
+  PyObject *__pyx_int_0;
   PyObject *__pyx_int_2;
+  PyObject *__pyx_int_30;
+  PyObject *__pyx_int_100;
+  PyObject *__pyx_int_255;
+  PyObject *__pyx_int_400;
+  PyObject *__pyx_int_480;
+  PyObject *__pyx_int_640;
+  PyObject *__pyx_int_neg_1;
   PyObject *__pyx_tuple_;
   PyObject *__pyx_tuple__2;
   PyObject *__pyx_tuple__3;
   PyObject *__pyx_tuple__4;
   PyObject *__pyx_tuple__5;
-  PyObject *__pyx_tuple__6;
 } __pyx_mstate;
 
 #if CYTHON_USE_MODULE_STATE
@@ -2104,55 +2174,73 @@ static int __pyx_m_clear(PyObject *m) {
   #ifdef __Pyx_FusedFunction_USED
   Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_CLEAR(clear_module_state->__pyx_n_s_COLOR_YUV2RGB);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_init_pytho);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_init_restr);
   Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_onVideoFra);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_streamFini);
   Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_streamStar);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_Exception_occurred_in_uninit_res);
   Py_CLEAR(clear_module_state->__pyx_n_s_INTER_LINEAR);
+  Py_CLEAR(clear_module_state->__pyx_n_s_VideoWriter);
+  Py_CLEAR(clear_module_state->__pyx_n_s__6);
   Py_CLEAR(clear_module_state->__pyx_n_s__7);
-  Py_CLEAR(clear_module_state->__pyx_n_s__8);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_appsrc_videoconvert_video_x_raw);
+  Py_CLEAR(clear_module_state->__pyx_n_s_class_getitem);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
+  Py_CLEAR(clear_module_state->__pyx_n_s_concatenate);
+  Py_CLEAR(clear_module_state->__pyx_n_s_copy);
   Py_CLEAR(clear_module_state->__pyx_n_s_count);
   Py_CLEAR(clear_module_state->__pyx_n_s_cv2);
-  Py_CLEAR(clear_module_state->__pyx_n_s_cvtColor);
   Py_CLEAR(clear_module_state->__pyx_n_s_cypes);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_done_writer_for_stream);
   Py_CLEAR(clear_module_state->__pyx_n_s_dtype);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_failed_to_release_video_stream_n);
+  Py_CLEAR(clear_module_state->__pyx_n_s_flatten);
   Py_CLEAR(clear_module_state->__pyx_n_s_frombuffer);
+  Py_CLEAR(clear_module_state->__pyx_n_s_frompython);
   Py_CLEAR(clear_module_state->__pyx_n_s_import);
-  Py_CLEAR(clear_module_state->__pyx_n_s_imwrite);
   Py_CLEAR(clear_module_state->__pyx_n_s_initializing);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_initializing_writer_for_stream);
   Py_CLEAR(clear_module_state->__pyx_n_s_interpolation);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
   Py_CLEAR(clear_module_state->__pyx_n_s_merge);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_new_test_3);
   Py_CLEAR(clear_module_state->__pyx_n_s_np);
   Py_CLEAR(clear_module_state->__pyx_n_s_numpy);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_on_audio_frame_recieved_in_pytho);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_audio_packet_recieved_in_pyth);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_audio_stream_info);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_stream_finished_in_python_pl);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_stream_started_in_python_plu);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_on_video_frame_recieved_in_pytho);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_video_packet_recieved_in_pyth);
   Py_CLEAR(clear_module_state->__pyx_kp_s_on_video_stream_info);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_output_jpg);
   Py_CLEAR(clear_module_state->__pyx_n_s_print);
-  Py_CLEAR(clear_module_state->__pyx_n_s_print_exc);
+  Py_CLEAR(clear_module_state->__pyx_n_s_rectangle);
+  Py_CLEAR(clear_module_state->__pyx_n_s_release);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_releasing_resources_for);
   Py_CLEAR(clear_module_state->__pyx_n_s_reshape);
   Py_CLEAR(clear_module_state->__pyx_n_s_resize);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE);
   Py_CLEAR(clear_module_state->__pyx_n_s_spec);
+  Py_CLEAR(clear_module_state->__pyx_n_s_subprocess);
   Py_CLEAR(clear_module_state->__pyx_n_s_test);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_testing);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_testing1);
   Py_CLEAR(clear_module_state->__pyx_n_s_time);
-  Py_CLEAR(clear_module_state->__pyx_n_s_traceback);
   Py_CLEAR(clear_module_state->__pyx_n_s_uint8);
+  Py_CLEAR(clear_module_state->__pyx_n_s_write);
+  Py_CLEAR(clear_module_state->__pyx_int_0);
   Py_CLEAR(clear_module_state->__pyx_int_2);
+  Py_CLEAR(clear_module_state->__pyx_int_30);
+  Py_CLEAR(clear_module_state->__pyx_int_100);
+  Py_CLEAR(clear_module_state->__pyx_int_255);
+  Py_CLEAR(clear_module_state->__pyx_int_400);
+  Py_CLEAR(clear_module_state->__pyx_int_480);
+  Py_CLEAR(clear_module_state->__pyx_int_640);
+  Py_CLEAR(clear_module_state->__pyx_int_neg_1);
   Py_CLEAR(clear_module_state->__pyx_tuple_);
   Py_CLEAR(clear_module_state->__pyx_tuple__2);
   Py_CLEAR(clear_module_state->__pyx_tuple__3);
   Py_CLEAR(clear_module_state->__pyx_tuple__4);
   Py_CLEAR(clear_module_state->__pyx_tuple__5);
-  Py_CLEAR(clear_module_state->__pyx_tuple__6);
   return 0;
 }
 #endif
@@ -2173,55 +2261,73 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   #ifdef __Pyx_FusedFunction_USED
   Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_VISIT(traverse_module_state->__pyx_n_s_COLOR_YUV2RGB);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_init_pytho);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_init_restr);
   Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_onVideoFra);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_streamFini);
   Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_streamStar);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_Exception_occurred_in_uninit_res);
   Py_VISIT(traverse_module_state->__pyx_n_s_INTER_LINEAR);
+  Py_VISIT(traverse_module_state->__pyx_n_s_VideoWriter);
+  Py_VISIT(traverse_module_state->__pyx_n_s__6);
   Py_VISIT(traverse_module_state->__pyx_n_s__7);
-  Py_VISIT(traverse_module_state->__pyx_n_s__8);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_appsrc_videoconvert_video_x_raw);
+  Py_VISIT(traverse_module_state->__pyx_n_s_class_getitem);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
+  Py_VISIT(traverse_module_state->__pyx_n_s_concatenate);
+  Py_VISIT(traverse_module_state->__pyx_n_s_copy);
   Py_VISIT(traverse_module_state->__pyx_n_s_count);
   Py_VISIT(traverse_module_state->__pyx_n_s_cv2);
-  Py_VISIT(traverse_module_state->__pyx_n_s_cvtColor);
   Py_VISIT(traverse_module_state->__pyx_n_s_cypes);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_done_writer_for_stream);
   Py_VISIT(traverse_module_state->__pyx_n_s_dtype);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_failed_to_release_video_stream_n);
+  Py_VISIT(traverse_module_state->__pyx_n_s_flatten);
   Py_VISIT(traverse_module_state->__pyx_n_s_frombuffer);
+  Py_VISIT(traverse_module_state->__pyx_n_s_frompython);
   Py_VISIT(traverse_module_state->__pyx_n_s_import);
-  Py_VISIT(traverse_module_state->__pyx_n_s_imwrite);
   Py_VISIT(traverse_module_state->__pyx_n_s_initializing);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_initializing_writer_for_stream);
   Py_VISIT(traverse_module_state->__pyx_n_s_interpolation);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
   Py_VISIT(traverse_module_state->__pyx_n_s_merge);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_new_test_3);
   Py_VISIT(traverse_module_state->__pyx_n_s_np);
   Py_VISIT(traverse_module_state->__pyx_n_s_numpy);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_on_audio_frame_recieved_in_pytho);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_audio_packet_recieved_in_pyth);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_audio_stream_info);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_stream_finished_in_python_pl);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_stream_started_in_python_plu);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_on_video_frame_recieved_in_pytho);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_video_packet_recieved_in_pyth);
   Py_VISIT(traverse_module_state->__pyx_kp_s_on_video_stream_info);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_output_jpg);
   Py_VISIT(traverse_module_state->__pyx_n_s_print);
-  Py_VISIT(traverse_module_state->__pyx_n_s_print_exc);
+  Py_VISIT(traverse_module_state->__pyx_n_s_rectangle);
+  Py_VISIT(traverse_module_state->__pyx_n_s_release);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_releasing_resources_for);
   Py_VISIT(traverse_module_state->__pyx_n_s_reshape);
   Py_VISIT(traverse_module_state->__pyx_n_s_resize);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE);
   Py_VISIT(traverse_module_state->__pyx_n_s_spec);
+  Py_VISIT(traverse_module_state->__pyx_n_s_subprocess);
   Py_VISIT(traverse_module_state->__pyx_n_s_test);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_testing);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_testing1);
   Py_VISIT(traverse_module_state->__pyx_n_s_time);
-  Py_VISIT(traverse_module_state->__pyx_n_s_traceback);
   Py_VISIT(traverse_module_state->__pyx_n_s_uint8);
+  Py_VISIT(traverse_module_state->__pyx_n_s_write);
+  Py_VISIT(traverse_module_state->__pyx_int_0);
   Py_VISIT(traverse_module_state->__pyx_int_2);
+  Py_VISIT(traverse_module_state->__pyx_int_30);
+  Py_VISIT(traverse_module_state->__pyx_int_100);
+  Py_VISIT(traverse_module_state->__pyx_int_255);
+  Py_VISIT(traverse_module_state->__pyx_int_400);
+  Py_VISIT(traverse_module_state->__pyx_int_480);
+  Py_VISIT(traverse_module_state->__pyx_int_640);
+  Py_VISIT(traverse_module_state->__pyx_int_neg_1);
   Py_VISIT(traverse_module_state->__pyx_tuple_);
   Py_VISIT(traverse_module_state->__pyx_tuple__2);
   Py_VISIT(traverse_module_state->__pyx_tuple__3);
   Py_VISIT(traverse_module_state->__pyx_tuple__4);
   Py_VISIT(traverse_module_state->__pyx_tuple__5);
-  Py_VISIT(traverse_module_state->__pyx_tuple__6);
   return 0;
 }
 #endif
@@ -2256,149 +2362,114 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #endif
 #if CYTHON_USE_MODULE_STATE
 #endif
-#define __pyx_n_s_COLOR_YUV2RGB __pyx_mstate_global->__pyx_n_s_COLOR_YUV2RGB
+#define __pyx_kp_s_Exception_occurred_in_init_pytho __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_init_pytho
+#define __pyx_kp_s_Exception_occurred_in_init_restr __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_init_restr
 #define __pyx_kp_s_Exception_occurred_in_onVideoFra __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_onVideoFra
+#define __pyx_kp_s_Exception_occurred_in_streamFini __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_streamFini
 #define __pyx_kp_s_Exception_occurred_in_streamStar __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_streamStar
+#define __pyx_kp_s_Exception_occurred_in_uninit_res __pyx_mstate_global->__pyx_kp_s_Exception_occurred_in_uninit_res
 #define __pyx_n_s_INTER_LINEAR __pyx_mstate_global->__pyx_n_s_INTER_LINEAR
+#define __pyx_n_s_VideoWriter __pyx_mstate_global->__pyx_n_s_VideoWriter
+#define __pyx_n_s__6 __pyx_mstate_global->__pyx_n_s__6
 #define __pyx_n_s__7 __pyx_mstate_global->__pyx_n_s__7
-#define __pyx_n_s__8 __pyx_mstate_global->__pyx_n_s__8
+#define __pyx_kp_s_appsrc_videoconvert_video_x_raw __pyx_mstate_global->__pyx_kp_s_appsrc_videoconvert_video_x_raw
+#define __pyx_n_s_class_getitem __pyx_mstate_global->__pyx_n_s_class_getitem
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
+#define __pyx_n_s_concatenate __pyx_mstate_global->__pyx_n_s_concatenate
+#define __pyx_n_s_copy __pyx_mstate_global->__pyx_n_s_copy
 #define __pyx_n_s_count __pyx_mstate_global->__pyx_n_s_count
 #define __pyx_n_s_cv2 __pyx_mstate_global->__pyx_n_s_cv2
-#define __pyx_n_s_cvtColor __pyx_mstate_global->__pyx_n_s_cvtColor
 #define __pyx_n_s_cypes __pyx_mstate_global->__pyx_n_s_cypes
+#define __pyx_kp_s_done_writer_for_stream __pyx_mstate_global->__pyx_kp_s_done_writer_for_stream
 #define __pyx_n_s_dtype __pyx_mstate_global->__pyx_n_s_dtype
+#define __pyx_kp_s_failed_to_release_video_stream_n __pyx_mstate_global->__pyx_kp_s_failed_to_release_video_stream_n
+#define __pyx_n_s_flatten __pyx_mstate_global->__pyx_n_s_flatten
 #define __pyx_n_s_frombuffer __pyx_mstate_global->__pyx_n_s_frombuffer
+#define __pyx_n_s_frompython __pyx_mstate_global->__pyx_n_s_frompython
 #define __pyx_n_s_import __pyx_mstate_global->__pyx_n_s_import
-#define __pyx_n_s_imwrite __pyx_mstate_global->__pyx_n_s_imwrite
 #define __pyx_n_s_initializing __pyx_mstate_global->__pyx_n_s_initializing
+#define __pyx_kp_s_initializing_writer_for_stream __pyx_mstate_global->__pyx_kp_s_initializing_writer_for_stream
 #define __pyx_n_s_interpolation __pyx_mstate_global->__pyx_n_s_interpolation
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
 #define __pyx_n_s_merge __pyx_mstate_global->__pyx_n_s_merge
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
-#define __pyx_kp_s_new_test_3 __pyx_mstate_global->__pyx_kp_s_new_test_3
 #define __pyx_n_s_np __pyx_mstate_global->__pyx_n_s_np
 #define __pyx_n_s_numpy __pyx_mstate_global->__pyx_n_s_numpy
+#define __pyx_kp_s_on_audio_frame_recieved_in_pytho __pyx_mstate_global->__pyx_kp_s_on_audio_frame_recieved_in_pytho
 #define __pyx_kp_s_on_audio_packet_recieved_in_pyth __pyx_mstate_global->__pyx_kp_s_on_audio_packet_recieved_in_pyth
 #define __pyx_kp_s_on_audio_stream_info __pyx_mstate_global->__pyx_kp_s_on_audio_stream_info
 #define __pyx_kp_s_on_stream_finished_in_python_pl __pyx_mstate_global->__pyx_kp_s_on_stream_finished_in_python_pl
 #define __pyx_kp_s_on_stream_started_in_python_plu __pyx_mstate_global->__pyx_kp_s_on_stream_started_in_python_plu
-#define __pyx_kp_s_on_video_frame_recieved_in_pytho __pyx_mstate_global->__pyx_kp_s_on_video_frame_recieved_in_pytho
 #define __pyx_kp_s_on_video_packet_recieved_in_pyth __pyx_mstate_global->__pyx_kp_s_on_video_packet_recieved_in_pyth
 #define __pyx_kp_s_on_video_stream_info __pyx_mstate_global->__pyx_kp_s_on_video_stream_info
-#define __pyx_kp_s_output_jpg __pyx_mstate_global->__pyx_kp_s_output_jpg
 #define __pyx_n_s_print __pyx_mstate_global->__pyx_n_s_print
-#define __pyx_n_s_print_exc __pyx_mstate_global->__pyx_n_s_print_exc
+#define __pyx_n_s_rectangle __pyx_mstate_global->__pyx_n_s_rectangle
+#define __pyx_n_s_release __pyx_mstate_global->__pyx_n_s_release
+#define __pyx_kp_s_releasing_resources_for __pyx_mstate_global->__pyx_kp_s_releasing_resources_for
 #define __pyx_n_s_reshape __pyx_mstate_global->__pyx_n_s_reshape
 #define __pyx_n_s_resize __pyx_mstate_global->__pyx_n_s_resize
+#define __pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE __pyx_mstate_global->__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE
 #define __pyx_n_s_spec __pyx_mstate_global->__pyx_n_s_spec
+#define __pyx_n_s_subprocess __pyx_mstate_global->__pyx_n_s_subprocess
 #define __pyx_n_s_test __pyx_mstate_global->__pyx_n_s_test
-#define __pyx_kp_s_testing __pyx_mstate_global->__pyx_kp_s_testing
-#define __pyx_kp_s_testing1 __pyx_mstate_global->__pyx_kp_s_testing1
 #define __pyx_n_s_time __pyx_mstate_global->__pyx_n_s_time
-#define __pyx_n_s_traceback __pyx_mstate_global->__pyx_n_s_traceback
 #define __pyx_n_s_uint8 __pyx_mstate_global->__pyx_n_s_uint8
+#define __pyx_n_s_write __pyx_mstate_global->__pyx_n_s_write
+#define __pyx_int_0 __pyx_mstate_global->__pyx_int_0
 #define __pyx_int_2 __pyx_mstate_global->__pyx_int_2
+#define __pyx_int_30 __pyx_mstate_global->__pyx_int_30
+#define __pyx_int_100 __pyx_mstate_global->__pyx_int_100
+#define __pyx_int_255 __pyx_mstate_global->__pyx_int_255
+#define __pyx_int_400 __pyx_mstate_global->__pyx_int_400
+#define __pyx_int_480 __pyx_mstate_global->__pyx_int_480
+#define __pyx_int_640 __pyx_mstate_global->__pyx_int_640
+#define __pyx_int_neg_1 __pyx_mstate_global->__pyx_int_neg_1
 #define __pyx_tuple_ __pyx_mstate_global->__pyx_tuple_
 #define __pyx_tuple__2 __pyx_mstate_global->__pyx_tuple__2
 #define __pyx_tuple__3 __pyx_mstate_global->__pyx_tuple__3
 #define __pyx_tuple__4 __pyx_mstate_global->__pyx_tuple__4
 #define __pyx_tuple__5 __pyx_mstate_global->__pyx_tuple__5
-#define __pyx_tuple__6 __pyx_mstate_global->__pyx_tuple__6
 /* #### Code section: module_code ### */
 
-/* "libpythonWrapper.pyx":19
- *         int quality;
- * 
- * cdef public avframe_to_rgb(AVFrame *avframe, int width, int height):             # <<<<<<<<<<<<<<
- *     print("testing ")
- *     # return rgb_image
- */
-
-PyObject *avframe_to_rgb(CYTHON_UNUSED struct AVFrame *__pyx_v_avframe, CYTHON_UNUSED int __pyx_v_width, CYTHON_UNUSED int __pyx_v_height) {
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("avframe_to_rgb", 1);
-
-  /* "libpythonWrapper.pyx":20
- * 
- * cdef public avframe_to_rgb(AVFrame *avframe, int width, int height):
- *     print("testing ")             # <<<<<<<<<<<<<<
- *     # return rgb_image
- * 
- */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 20, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-  /* "libpythonWrapper.pyx":19
- *         int quality;
- * 
- * cdef public avframe_to_rgb(AVFrame *avframe, int width, int height):             # <<<<<<<<<<<<<<
- *     print("testing ")
- *     # return rgb_image
- */
-
-  /* function exit code */
-  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-  goto __pyx_L0;
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("libpythonWrapper.avframe_to_rgb", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = 0;
-  __pyx_L0:;
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* "libpythonWrapper.pyx":27
+/* "libpythonWrapper.pyx":25
  *         pass
  * 
- * cdef public void streamStarted(const char* streamid):             # <<<<<<<<<<<<<<
- *     try:
- *         py_streamid = streamid.decode('utf-8')
+ * cdef public void init_python_plugin_state():             # <<<<<<<<<<<<<<
+ *     # initialize all global variables and state of the program in this functions it will be called once when program is initialized
+ *     global streamidProcessDict
  */
 
-void streamStarted(char const *__pyx_v_streamid) {
-  PyObject *__pyx_v_py_streamid = NULL;
+void init_python_plugin_state(void) {
   PyObject *__pyx_v_e = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
   PyObject *__pyx_t_2 = NULL;
   PyObject *__pyx_t_3 = NULL;
-  Py_ssize_t __pyx_t_4;
-  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  int __pyx_t_5;
   PyObject *__pyx_t_6 = NULL;
-  int __pyx_t_7;
+  PyObject *__pyx_t_7 = NULL;
   PyObject *__pyx_t_8 = NULL;
   PyObject *__pyx_t_9 = NULL;
-  PyObject *__pyx_t_10 = NULL;
-  PyObject *__pyx_t_11 = NULL;
-  unsigned int __pyx_t_12;
-  int __pyx_t_13;
-  char const *__pyx_t_14;
+  int __pyx_t_10;
+  char const *__pyx_t_11;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
   PyObject *__pyx_t_15 = NULL;
   PyObject *__pyx_t_16 = NULL;
   PyObject *__pyx_t_17 = NULL;
-  PyObject *__pyx_t_18 = NULL;
-  PyObject *__pyx_t_19 = NULL;
-  PyObject *__pyx_t_20 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("streamStarted", 1);
+  __Pyx_RefNannySetupContext("init_python_plugin_state", 1);
 
   /* "libpythonWrapper.pyx":28
- * 
- * cdef public void streamStarted(const char* streamid):
+ *     # initialize all global variables and state of the program in this functions it will be called once when program is initialized
+ *     global streamidProcessDict
  *     try:             # <<<<<<<<<<<<<<
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)
+ *         streamidProcessDict = {}
+ *     except Exception as e:
  */
   {
     __Pyx_PyThreadState_declare
@@ -2410,44 +2481,25 @@ void streamStarted(char const *__pyx_v_streamid) {
     /*try:*/ {
 
       /* "libpythonWrapper.pyx":29
- * cdef public void streamStarted(const char* streamid):
+ *     global streamidProcessDict
  *     try:
- *         py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
- *         print("-------------on stream started in python plugin",py_streamid)
+ *         streamidProcessDict = {}             # <<<<<<<<<<<<<<
  *     except Exception as e:
+ *         print("Exception occurred in init_python_plugin_state:", e)
  */
-      __pyx_t_4 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_4 == ((Py_ssize_t)-1))) __PYX_ERR(0, 29, __pyx_L3_error)
-      __pyx_t_5 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_4, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 29, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __pyx_v_py_streamid = __pyx_t_5;
-      __pyx_t_5 = 0;
-
-      /* "libpythonWrapper.pyx":30
- *     try:
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)             # <<<<<<<<<<<<<<
- *     except Exception as e:
- *         print("Exception occurred in streamStarted:", e)
- */
-      __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 30, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_INCREF(__pyx_kp_s_on_stream_started_in_python_plu);
-      __Pyx_GIVEREF(__pyx_kp_s_on_stream_started_in_python_plu);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_kp_s_on_stream_started_in_python_plu)) __PYX_ERR(0, 30, __pyx_L3_error);
-      __Pyx_INCREF(__pyx_v_py_streamid);
-      __Pyx_GIVEREF(__pyx_v_py_streamid);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_v_py_streamid)) __PYX_ERR(0, 30, __pyx_L3_error);
-      __pyx_t_6 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_5, NULL); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 30, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __pyx_t_4 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 29, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_XGOTREF(__pyx_v_16libpythonWrapper_streamidProcessDict);
+      __Pyx_DECREF_SET(__pyx_v_16libpythonWrapper_streamidProcessDict, __pyx_t_4);
+      __Pyx_GIVEREF(__pyx_t_4);
+      __pyx_t_4 = 0;
 
       /* "libpythonWrapper.pyx":28
- * 
- * cdef public void streamStarted(const char* streamid):
+ *     # initialize all global variables and state of the program in this functions it will be called once when program is initialized
+ *     global streamidProcessDict
  *     try:             # <<<<<<<<<<<<<<
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)
+ *         streamidProcessDict = {}
+ *     except Exception as e:
  */
     }
     __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -2455,90 +2507,53 @@ void streamStarted(char const *__pyx_v_streamid) {
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
-    __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+    __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-    /* "libpythonWrapper.pyx":31
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)
+    /* "libpythonWrapper.pyx":30
+ *     try:
+ *         streamidProcessDict = {}
  *     except Exception as e:             # <<<<<<<<<<<<<<
- *         print("Exception occurred in streamStarted:", e)
- *         traceback.print_exc()
- */
-    __pyx_t_7 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
-    if (__pyx_t_7) {
-      __Pyx_AddTraceback("libpythonWrapper.streamStarted", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_6, &__pyx_t_5, &__pyx_t_8) < 0) __PYX_ERR(0, 31, __pyx_L5_except_error)
-      __Pyx_XGOTREF(__pyx_t_6);
-      __Pyx_XGOTREF(__pyx_t_5);
-      __Pyx_XGOTREF(__pyx_t_8);
-      __Pyx_INCREF(__pyx_t_5);
-      __pyx_v_e = __pyx_t_5;
-      /*try:*/ {
-
-        /* "libpythonWrapper.pyx":32
- *         print("-------------on stream started in python plugin",py_streamid)
- *     except Exception as e:
- *         print("Exception occurred in streamStarted:", e)             # <<<<<<<<<<<<<<
- *         traceback.print_exc()
+ *         print("Exception occurred in init_python_plugin_state:", e)
  *     return
  */
-        __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 32, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_9);
-        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_streamStar);
-        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_streamStar);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_kp_s_Exception_occurred_in_streamStar)) __PYX_ERR(0, 32, __pyx_L14_error);
-        __Pyx_INCREF(__pyx_v_e);
-        __Pyx_GIVEREF(__pyx_v_e);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_e)) __PYX_ERR(0, 32, __pyx_L14_error);
-        __pyx_t_10 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_9, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 32, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_10);
-        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+    __pyx_t_5 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
+    if (__pyx_t_5) {
+      __Pyx_AddTraceback("libpythonWrapper.init_python_plugin_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      if (__Pyx_GetException(&__pyx_t_4, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(0, 30, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_4);
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_7);
+      __Pyx_INCREF(__pyx_t_6);
+      __pyx_v_e = __pyx_t_6;
+      /*try:*/ {
 
-        /* "libpythonWrapper.pyx":33
+        /* "libpythonWrapper.pyx":31
+ *         streamidProcessDict = {}
  *     except Exception as e:
- *         print("Exception occurred in streamStarted:", e)
- *         traceback.print_exc()             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in init_python_plugin_state:", e)             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_traceback); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 33, __pyx_L14_error)
+        __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 31, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_8);
+        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_init_pytho);
+        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_init_pytho);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_kp_s_Exception_occurred_in_init_pytho)) __PYX_ERR(0, 31, __pyx_L14_error);
+        __Pyx_INCREF(__pyx_v_e);
+        __Pyx_GIVEREF(__pyx_v_e);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 1, __pyx_v_e)) __PYX_ERR(0, 31, __pyx_L14_error);
+        __pyx_t_9 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_8, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 31, __pyx_L14_error)
         __Pyx_GOTREF(__pyx_t_9);
-        __pyx_t_11 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_print_exc); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 33, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-        __pyx_t_9 = NULL;
-        __pyx_t_12 = 0;
-        #if CYTHON_UNPACK_METHODS
-        if (unlikely(PyMethod_Check(__pyx_t_11))) {
-          __pyx_t_9 = PyMethod_GET_SELF(__pyx_t_11);
-          if (likely(__pyx_t_9)) {
-            PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_11);
-            __Pyx_INCREF(__pyx_t_9);
-            __Pyx_INCREF(function);
-            __Pyx_DECREF_SET(__pyx_t_11, function);
-            __pyx_t_12 = 1;
-          }
-        }
-        #endif
-        {
-          PyObject *__pyx_callargs[2] = {__pyx_t_9, NULL};
-          __pyx_t_10 = __Pyx_PyObject_FastCall(__pyx_t_11, __pyx_callargs+1-__pyx_t_12, 0+__pyx_t_12);
-          __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
-          if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 33, __pyx_L14_error)
-          __Pyx_GOTREF(__pyx_t_10);
-          __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
-        }
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       }
 
-      /* "libpythonWrapper.pyx":31
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)
+      /* "libpythonWrapper.pyx":30
+ *     try:
+ *         streamidProcessDict = {}
  *     except Exception as e:             # <<<<<<<<<<<<<<
- *         print("Exception occurred in streamStarted:", e)
- *         traceback.print_exc()
+ *         print("Exception occurred in init_python_plugin_state:", e)
+ *     return
  */
       /*finally:*/ {
         /*normal exit:*/{
@@ -2549,51 +2564,50 @@ void streamStarted(char const *__pyx_v_streamid) {
         /*exception exit:*/{
           __Pyx_PyThreadState_declare
           __Pyx_PyThreadState_assign
-          __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
-          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
-          __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
+          __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0;
+          __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
           __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
-          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_18, &__pyx_t_19, &__pyx_t_20);
-          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_15, &__pyx_t_16, &__pyx_t_17) < 0)) __Pyx_ErrFetch(&__pyx_t_15, &__pyx_t_16, &__pyx_t_17);
+          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_15, &__pyx_t_16, &__pyx_t_17);
+          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_12, &__pyx_t_13, &__pyx_t_14) < 0)) __Pyx_ErrFetch(&__pyx_t_12, &__pyx_t_13, &__pyx_t_14);
+          __Pyx_XGOTREF(__pyx_t_12);
+          __Pyx_XGOTREF(__pyx_t_13);
+          __Pyx_XGOTREF(__pyx_t_14);
           __Pyx_XGOTREF(__pyx_t_15);
           __Pyx_XGOTREF(__pyx_t_16);
           __Pyx_XGOTREF(__pyx_t_17);
-          __Pyx_XGOTREF(__pyx_t_18);
-          __Pyx_XGOTREF(__pyx_t_19);
-          __Pyx_XGOTREF(__pyx_t_20);
-          __pyx_t_7 = __pyx_lineno; __pyx_t_13 = __pyx_clineno; __pyx_t_14 = __pyx_filename;
+          __pyx_t_5 = __pyx_lineno; __pyx_t_10 = __pyx_clineno; __pyx_t_11 = __pyx_filename;
           {
             __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
           }
           if (PY_MAJOR_VERSION >= 3) {
-            __Pyx_XGIVEREF(__pyx_t_18);
-            __Pyx_XGIVEREF(__pyx_t_19);
-            __Pyx_XGIVEREF(__pyx_t_20);
-            __Pyx_ExceptionReset(__pyx_t_18, __pyx_t_19, __pyx_t_20);
+            __Pyx_XGIVEREF(__pyx_t_15);
+            __Pyx_XGIVEREF(__pyx_t_16);
+            __Pyx_XGIVEREF(__pyx_t_17);
+            __Pyx_ExceptionReset(__pyx_t_15, __pyx_t_16, __pyx_t_17);
           }
-          __Pyx_XGIVEREF(__pyx_t_15);
-          __Pyx_XGIVEREF(__pyx_t_16);
-          __Pyx_XGIVEREF(__pyx_t_17);
-          __Pyx_ErrRestore(__pyx_t_15, __pyx_t_16, __pyx_t_17);
-          __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
-          __pyx_lineno = __pyx_t_7; __pyx_clineno = __pyx_t_13; __pyx_filename = __pyx_t_14;
+          __Pyx_XGIVEREF(__pyx_t_12);
+          __Pyx_XGIVEREF(__pyx_t_13);
+          __Pyx_XGIVEREF(__pyx_t_14);
+          __Pyx_ErrRestore(__pyx_t_12, __pyx_t_13, __pyx_t_14);
+          __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0;
+          __pyx_lineno = __pyx_t_5; __pyx_clineno = __pyx_t_10; __pyx_filename = __pyx_t_11;
           goto __pyx_L5_except_error;
         }
         __pyx_L15:;
       }
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
       goto __pyx_L4_exception_handled;
     }
     goto __pyx_L5_except_error;
 
     /* "libpythonWrapper.pyx":28
- * 
- * cdef public void streamStarted(const char* streamid):
+ *     # initialize all global variables and state of the program in this functions it will be called once when program is initialized
+ *     global streamidProcessDict
  *     try:             # <<<<<<<<<<<<<<
- *         py_streamid = streamid.decode('utf-8')
- *         print("-------------on stream started in python plugin",py_streamid)
+ *         streamidProcessDict = {}
+ *     except Exception as e:
  */
     __pyx_L5_except_error:;
     __Pyx_XGIVEREF(__pyx_t_1);
@@ -2609,21 +2623,891 @@ void streamStarted(char const *__pyx_v_streamid) {
     __pyx_L8_try_end:;
   }
 
-  /* "libpythonWrapper.pyx":34
- *         print("Exception occurred in streamStarted:", e)
- *         traceback.print_exc()
+  /* "libpythonWrapper.pyx":32
+ *     except Exception as e:
+ *         print("Exception occurred in init_python_plugin_state:", e)
  *     return             # <<<<<<<<<<<<<<
  * 
- * cdef public void streamFinished(const char* streamid):
+ * 
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":27
+  /* "libpythonWrapper.pyx":25
  *         pass
  * 
- * cdef public void streamStarted(const char* streamid):             # <<<<<<<<<<<<<<
+ * cdef public void init_python_plugin_state():             # <<<<<<<<<<<<<<
+ *     # initialize all global variables and state of the program in this functions it will be called once when program is initialized
+ *     global streamidProcessDict
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_7);
+  __Pyx_XDECREF(__pyx_t_8);
+  __Pyx_XDECREF(__pyx_t_9);
+  __Pyx_AddTraceback("libpythonWrapper.init_python_plugin_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_e);
+  __Pyx_RefNannyFinishContext();
+}
+
+/* "libpythonWrapper.pyx":35
+ * 
+ * 
+ * cdef public void init_restream(streamid):             # <<<<<<<<<<<<<<
  *     try:
- *         py_streamid = streamid.decode('utf-8')
+ *         global streamidProcessDict
+ */
+
+void init_restream(PyObject *__pyx_v_streamid) {
+  PyObject *__pyx_v_rtmpUrl = NULL;
+  PyObject *__pyx_v_send_gst = NULL;
+  PyObject *__pyx_v_out_send = NULL;
+  PyObject *__pyx_v_e = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  unsigned int __pyx_t_7;
+  int __pyx_t_8;
+  PyObject *__pyx_t_9 = NULL;
+  PyObject *__pyx_t_10 = NULL;
+  int __pyx_t_11;
+  char const *__pyx_t_12;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
+  PyObject *__pyx_t_18 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("init_restream", 1);
+
+  /* "libpythonWrapper.pyx":36
+ * 
+ * cdef public void init_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ *         print("initializing writer for stream"+streamid)
+ */
+  {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ExceptionSave(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3);
+    __Pyx_XGOTREF(__pyx_t_1);
+    __Pyx_XGOTREF(__pyx_t_2);
+    __Pyx_XGOTREF(__pyx_t_3);
+    /*try:*/ {
+
+      /* "libpythonWrapper.pyx":38
+ *     try:
+ *         global streamidProcessDict
+ *         print("initializing writer for stream"+streamid)             # <<<<<<<<<<<<<<
+ *         rtmpUrl = 'rtmp://127.0.0.1/WebRTCAppEE/' + streamid + "frompython"
+ *         send_gst = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=" + rtmpUrl
+ */
+      __pyx_t_4 = PyNumber_Add(__pyx_kp_s_initializing_writer_for_stream, __pyx_v_streamid); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 38, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_t_5 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 38, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+
+      /* "libpythonWrapper.pyx":39
+ *         global streamidProcessDict
+ *         print("initializing writer for stream"+streamid)
+ *         rtmpUrl = 'rtmp://127.0.0.1/WebRTCAppEE/' + streamid + "frompython"             # <<<<<<<<<<<<<<
+ *         send_gst = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=" + rtmpUrl
+ * 
+ */
+      __pyx_t_5 = PyNumber_Add(__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE, __pyx_v_streamid); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 39, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_t_4 = PyNumber_Add(__pyx_t_5, __pyx_n_s_frompython); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 39, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __pyx_v_rtmpUrl = __pyx_t_4;
+      __pyx_t_4 = 0;
+
+      /* "libpythonWrapper.pyx":40
+ *         print("initializing writer for stream"+streamid)
+ *         rtmpUrl = 'rtmp://127.0.0.1/WebRTCAppEE/' + streamid + "frompython"
+ *         send_gst = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=" + rtmpUrl             # <<<<<<<<<<<<<<
+ * 
+ *         out_send = cv2.VideoWriter(send_gst, 0, 30, (640, 480))
+ */
+      __pyx_t_4 = PyNumber_Add(__pyx_kp_s_appsrc_videoconvert_video_x_raw, __pyx_v_rtmpUrl); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 40, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_v_send_gst = __pyx_t_4;
+      __pyx_t_4 = 0;
+
+      /* "libpythonWrapper.pyx":42
+ *         send_gst = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=" + rtmpUrl
+ * 
+ *         out_send = cv2.VideoWriter(send_gst, 0, 30, (640, 480))             # <<<<<<<<<<<<<<
+ * 
+ *         print("done writer for stream "+streamid)
+ */
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_cv2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 42, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_VideoWriter); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 42, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __pyx_t_5 = NULL;
+      __pyx_t_7 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (unlikely(PyMethod_Check(__pyx_t_6))) {
+        __pyx_t_5 = PyMethod_GET_SELF(__pyx_t_6);
+        if (likely(__pyx_t_5)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
+          __Pyx_INCREF(__pyx_t_5);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_6, function);
+          __pyx_t_7 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[5] = {__pyx_t_5, __pyx_v_send_gst, __pyx_int_0, __pyx_int_30, __pyx_tuple_};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_7, 4+__pyx_t_7);
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 42, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_4);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      }
+      __pyx_v_out_send = __pyx_t_4;
+      __pyx_t_4 = 0;
+
+      /* "libpythonWrapper.pyx":44
+ *         out_send = cv2.VideoWriter(send_gst, 0, 30, (640, 480))
+ * 
+ *         print("done writer for stream "+streamid)             # <<<<<<<<<<<<<<
+ *         streamidProcessDict[streamid] = out_send
+ *     except Exception as e:
+ */
+      __pyx_t_4 = PyNumber_Add(__pyx_kp_s_done_writer_for_stream, __pyx_v_streamid); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 44, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_t_6 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 44, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+      /* "libpythonWrapper.pyx":45
+ * 
+ *         print("done writer for stream "+streamid)
+ *         streamidProcessDict[streamid] = out_send             # <<<<<<<<<<<<<<
+ *     except Exception as e:
+ *         print("Exception occurred in init_restream :", e)
+ */
+      if (unlikely((PyObject_SetItem(__pyx_v_16libpythonWrapper_streamidProcessDict, __pyx_v_streamid, __pyx_v_out_send) < 0))) __PYX_ERR(0, 45, __pyx_L3_error)
+
+      /* "libpythonWrapper.pyx":36
+ * 
+ * cdef public void init_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ *         print("initializing writer for stream"+streamid)
+ */
+    }
+    __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    goto __pyx_L8_try_end;
+    __pyx_L3_error:;
+    __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+    __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+    /* "libpythonWrapper.pyx":46
+ *         print("done writer for stream "+streamid)
+ *         streamidProcessDict[streamid] = out_send
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in init_restream :", e)
+ *     return
+ */
+    __pyx_t_8 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
+    if (__pyx_t_8) {
+      __Pyx_AddTraceback("libpythonWrapper.init_restream", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      if (__Pyx_GetException(&__pyx_t_6, &__pyx_t_4, &__pyx_t_5) < 0) __PYX_ERR(0, 46, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_4);
+      __Pyx_XGOTREF(__pyx_t_5);
+      __Pyx_INCREF(__pyx_t_4);
+      __pyx_v_e = __pyx_t_4;
+      /*try:*/ {
+
+        /* "libpythonWrapper.pyx":47
+ *         streamidProcessDict[streamid] = out_send
+ *     except Exception as e:
+ *         print("Exception occurred in init_restream :", e)             # <<<<<<<<<<<<<<
+ *     return
+ * 
+ */
+        __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 47, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_9);
+        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_init_restr);
+        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_init_restr);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_kp_s_Exception_occurred_in_init_restr)) __PYX_ERR(0, 47, __pyx_L14_error);
+        __Pyx_INCREF(__pyx_v_e);
+        __Pyx_GIVEREF(__pyx_v_e);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_e)) __PYX_ERR(0, 47, __pyx_L14_error);
+        __pyx_t_10 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_9, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 47, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      }
+
+      /* "libpythonWrapper.pyx":46
+ *         print("done writer for stream "+streamid)
+ *         streamidProcessDict[streamid] = out_send
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in init_restream :", e)
+ *     return
+ */
+      /*finally:*/ {
+        /*normal exit:*/{
+          __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          goto __pyx_L15;
+        }
+        __pyx_L14_error:;
+        /*exception exit:*/{
+          __Pyx_PyThreadState_declare
+          __Pyx_PyThreadState_assign
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_16, &__pyx_t_17, &__pyx_t_18);
+          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15) < 0)) __Pyx_ErrFetch(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_13);
+          __Pyx_XGOTREF(__pyx_t_14);
+          __Pyx_XGOTREF(__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_16);
+          __Pyx_XGOTREF(__pyx_t_17);
+          __Pyx_XGOTREF(__pyx_t_18);
+          __pyx_t_8 = __pyx_lineno; __pyx_t_11 = __pyx_clineno; __pyx_t_12 = __pyx_filename;
+          {
+            __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          }
+          if (PY_MAJOR_VERSION >= 3) {
+            __Pyx_XGIVEREF(__pyx_t_16);
+            __Pyx_XGIVEREF(__pyx_t_17);
+            __Pyx_XGIVEREF(__pyx_t_18);
+            __Pyx_ExceptionReset(__pyx_t_16, __pyx_t_17, __pyx_t_18);
+          }
+          __Pyx_XGIVEREF(__pyx_t_13);
+          __Pyx_XGIVEREF(__pyx_t_14);
+          __Pyx_XGIVEREF(__pyx_t_15);
+          __Pyx_ErrRestore(__pyx_t_13, __pyx_t_14, __pyx_t_15);
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __pyx_lineno = __pyx_t_8; __pyx_clineno = __pyx_t_11; __pyx_filename = __pyx_t_12;
+          goto __pyx_L5_except_error;
+        }
+        __pyx_L15:;
+      }
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      goto __pyx_L4_exception_handled;
+    }
+    goto __pyx_L5_except_error;
+
+    /* "libpythonWrapper.pyx":36
+ * 
+ * cdef public void init_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ *         print("initializing writer for stream"+streamid)
+ */
+    __pyx_L5_except_error:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    goto __pyx_L1_error;
+    __pyx_L4_exception_handled:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    __pyx_L8_try_end:;
+  }
+
+  /* "libpythonWrapper.pyx":48
+ *     except Exception as e:
+ *         print("Exception occurred in init_restream :", e)
+ *     return             # <<<<<<<<<<<<<<
+ * 
+ * cdef public void uninit_restream(streamid):
+ */
+  goto __pyx_L0;
+
+  /* "libpythonWrapper.pyx":35
+ * 
+ * 
+ * cdef public void init_restream(streamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         global streamidProcessDict
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_9);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_AddTraceback("libpythonWrapper.init_restream", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_rtmpUrl);
+  __Pyx_XDECREF(__pyx_v_send_gst);
+  __Pyx_XDECREF(__pyx_v_out_send);
+  __Pyx_XDECREF(__pyx_v_e);
+  __Pyx_RefNannyFinishContext();
+}
+
+/* "libpythonWrapper.pyx":50
+ *     return
+ * 
+ * cdef public void uninit_restream(streamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         global streamidProcessDict
+ */
+
+void uninit_restream(PyObject *__pyx_v_streamid) {
+  PyObject *__pyx_v_e = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  PyObject *__pyx_t_7 = NULL;
+  unsigned int __pyx_t_8;
+  int __pyx_t_9;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  int __pyx_t_12;
+  char const *__pyx_t_13;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
+  PyObject *__pyx_t_18 = NULL;
+  PyObject *__pyx_t_19 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("uninit_restream", 1);
+
+  /* "libpythonWrapper.pyx":51
+ * 
+ * cdef public void uninit_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ * 
+ */
+  {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ExceptionSave(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3);
+    __Pyx_XGOTREF(__pyx_t_1);
+    __Pyx_XGOTREF(__pyx_t_2);
+    __Pyx_XGOTREF(__pyx_t_3);
+    /*try:*/ {
+
+      /* "libpythonWrapper.pyx":54
+ *         global streamidProcessDict
+ * 
+ *         if streamid in streamidProcessDict:             # <<<<<<<<<<<<<<
+ *             print("releasing resources for "+ streamid)
+ *             streamidProcessDict[streamid].release()
+ */
+      __pyx_t_4 = (__Pyx_PySequence_ContainsTF(__pyx_v_streamid, __pyx_v_16libpythonWrapper_streamidProcessDict, Py_EQ)); if (unlikely((__pyx_t_4 < 0))) __PYX_ERR(0, 54, __pyx_L3_error)
+      if (__pyx_t_4) {
+
+        /* "libpythonWrapper.pyx":55
+ * 
+ *         if streamid in streamidProcessDict:
+ *             print("releasing resources for "+ streamid)             # <<<<<<<<<<<<<<
+ *             streamidProcessDict[streamid].release()
+ *         else:
+ */
+        __pyx_t_5 = PyNumber_Add(__pyx_kp_s_releasing_resources_for, __pyx_v_streamid); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 55, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_6 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_5); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 55, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_6);
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+        /* "libpythonWrapper.pyx":56
+ *         if streamid in streamidProcessDict:
+ *             print("releasing resources for "+ streamid)
+ *             streamidProcessDict[streamid].release()             # <<<<<<<<<<<<<<
+ *         else:
+ *             print("failed to release video stream no such stream exist "+streamid)
+ */
+        __pyx_t_5 = __Pyx_PyObject_GetItem(__pyx_v_16libpythonWrapper_streamidProcessDict, __pyx_v_streamid); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 56, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_release); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 56, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_7);
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __pyx_t_5 = NULL;
+        __pyx_t_8 = 0;
+        #if CYTHON_UNPACK_METHODS
+        if (likely(PyMethod_Check(__pyx_t_7))) {
+          __pyx_t_5 = PyMethod_GET_SELF(__pyx_t_7);
+          if (likely(__pyx_t_5)) {
+            PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+            __Pyx_INCREF(__pyx_t_5);
+            __Pyx_INCREF(function);
+            __Pyx_DECREF_SET(__pyx_t_7, function);
+            __pyx_t_8 = 1;
+          }
+        }
+        #endif
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_5, NULL};
+          __pyx_t_6 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_8, 0+__pyx_t_8);
+          __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+          if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 56, __pyx_L3_error)
+          __Pyx_GOTREF(__pyx_t_6);
+          __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+        }
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+        /* "libpythonWrapper.pyx":54
+ *         global streamidProcessDict
+ * 
+ *         if streamid in streamidProcessDict:             # <<<<<<<<<<<<<<
+ *             print("releasing resources for "+ streamid)
+ *             streamidProcessDict[streamid].release()
+ */
+        goto __pyx_L9;
+      }
+
+      /* "libpythonWrapper.pyx":58
+ *             streamidProcessDict[streamid].release()
+ *         else:
+ *             print("failed to release video stream no such stream exist "+streamid)             # <<<<<<<<<<<<<<
+ *     except Exception as e:
+ *         print("Exception occurred in uninit_restream :", e)
+ */
+      /*else*/ {
+        __pyx_t_6 = PyNumber_Add(__pyx_kp_s_failed_to_release_video_stream_n, __pyx_v_streamid); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 58, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_6);
+        __pyx_t_7 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 58, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_7);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      }
+      __pyx_L9:;
+
+      /* "libpythonWrapper.pyx":51
+ * 
+ * cdef public void uninit_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ * 
+ */
+    }
+    __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    goto __pyx_L8_try_end;
+    __pyx_L3_error:;
+    __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+    __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+
+    /* "libpythonWrapper.pyx":59
+ *         else:
+ *             print("failed to release video stream no such stream exist "+streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in uninit_restream :", e)
+ * 
+ */
+    __pyx_t_9 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
+    if (__pyx_t_9) {
+      __Pyx_AddTraceback("libpythonWrapper.uninit_restream", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      if (__Pyx_GetException(&__pyx_t_7, &__pyx_t_6, &__pyx_t_5) < 0) __PYX_ERR(0, 59, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_7);
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_5);
+      __Pyx_INCREF(__pyx_t_6);
+      __pyx_v_e = __pyx_t_6;
+      /*try:*/ {
+
+        /* "libpythonWrapper.pyx":60
+ *             print("failed to release video stream no such stream exist "+streamid)
+ *     except Exception as e:
+ *         print("Exception occurred in uninit_restream :", e)             # <<<<<<<<<<<<<<
+ * 
+ *     return;
+ */
+        __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 60, __pyx_L15_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_uninit_res);
+        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_uninit_res);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_kp_s_Exception_occurred_in_uninit_res)) __PYX_ERR(0, 60, __pyx_L15_error);
+        __Pyx_INCREF(__pyx_v_e);
+        __Pyx_GIVEREF(__pyx_v_e);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_v_e)) __PYX_ERR(0, 60, __pyx_L15_error);
+        __pyx_t_11 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_10, NULL); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 60, __pyx_L15_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      }
+
+      /* "libpythonWrapper.pyx":59
+ *         else:
+ *             print("failed to release video stream no such stream exist "+streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in uninit_restream :", e)
+ * 
+ */
+      /*finally:*/ {
+        /*normal exit:*/{
+          __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          goto __pyx_L16;
+        }
+        __pyx_L15_error:;
+        /*exception exit:*/{
+          __Pyx_PyThreadState_declare
+          __Pyx_PyThreadState_assign
+          __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0;
+          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
+          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_17, &__pyx_t_18, &__pyx_t_19);
+          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16) < 0)) __Pyx_ErrFetch(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16);
+          __Pyx_XGOTREF(__pyx_t_14);
+          __Pyx_XGOTREF(__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_16);
+          __Pyx_XGOTREF(__pyx_t_17);
+          __Pyx_XGOTREF(__pyx_t_18);
+          __Pyx_XGOTREF(__pyx_t_19);
+          __pyx_t_9 = __pyx_lineno; __pyx_t_12 = __pyx_clineno; __pyx_t_13 = __pyx_filename;
+          {
+            __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          }
+          if (PY_MAJOR_VERSION >= 3) {
+            __Pyx_XGIVEREF(__pyx_t_17);
+            __Pyx_XGIVEREF(__pyx_t_18);
+            __Pyx_XGIVEREF(__pyx_t_19);
+            __Pyx_ExceptionReset(__pyx_t_17, __pyx_t_18, __pyx_t_19);
+          }
+          __Pyx_XGIVEREF(__pyx_t_14);
+          __Pyx_XGIVEREF(__pyx_t_15);
+          __Pyx_XGIVEREF(__pyx_t_16);
+          __Pyx_ErrRestore(__pyx_t_14, __pyx_t_15, __pyx_t_16);
+          __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0;
+          __pyx_lineno = __pyx_t_9; __pyx_clineno = __pyx_t_12; __pyx_filename = __pyx_t_13;
+          goto __pyx_L5_except_error;
+        }
+        __pyx_L16:;
+      }
+      __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      goto __pyx_L4_exception_handled;
+    }
+    goto __pyx_L5_except_error;
+
+    /* "libpythonWrapper.pyx":51
+ * 
+ * cdef public void uninit_restream(streamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         global streamidProcessDict
+ * 
+ */
+    __pyx_L5_except_error:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    goto __pyx_L1_error;
+    __pyx_L4_exception_handled:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    __pyx_L8_try_end:;
+  }
+
+  /* "libpythonWrapper.pyx":62
+ *         print("Exception occurred in uninit_restream :", e)
+ * 
+ *     return;             # <<<<<<<<<<<<<<
+ * 
+ * 
+ */
+  goto __pyx_L0;
+
+  /* "libpythonWrapper.pyx":50
+ *     return
+ * 
+ * cdef public void uninit_restream(streamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         global streamidProcessDict
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_7);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_XDECREF(__pyx_t_11);
+  __Pyx_AddTraceback("libpythonWrapper.uninit_restream", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_e);
+  __Pyx_RefNannyFinishContext();
+}
+
+/* "libpythonWrapper.pyx":65
+ * 
+ * 
+ * cdef public void streamStarted(const char* utfstreamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
+ */
+
+void streamStarted(char const *__pyx_v_utfstreamid) {
+  PyObject *__pyx_v_streamid = NULL;
+  PyObject *__pyx_v_e = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  Py_ssize_t __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  int __pyx_t_7;
+  PyObject *__pyx_t_8 = NULL;
+  PyObject *__pyx_t_9 = NULL;
+  PyObject *__pyx_t_10 = NULL;
+  int __pyx_t_11;
+  char const *__pyx_t_12;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
+  PyObject *__pyx_t_18 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("streamStarted", 1);
+
+  /* "libpythonWrapper.pyx":66
+ * 
+ * cdef public void streamStarted(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         init_restream(streamid)
+ */
+  {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ExceptionSave(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3);
+    __Pyx_XGOTREF(__pyx_t_1);
+    __Pyx_XGOTREF(__pyx_t_2);
+    __Pyx_XGOTREF(__pyx_t_3);
+    /*try:*/ {
+
+      /* "libpythonWrapper.pyx":67
+ * cdef public void streamStarted(const char* utfstreamid):
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')             # <<<<<<<<<<<<<<
+ *         init_restream(streamid)
+ *         print("-------------on stream started in python plugin---------------",streamid)
+ */
+      __pyx_t_4 = __Pyx_ssize_strlen(__pyx_v_utfstreamid); if (unlikely(__pyx_t_4 == ((Py_ssize_t)-1))) __PYX_ERR(0, 67, __pyx_L3_error)
+      __pyx_t_5 = __Pyx_decode_c_string(__pyx_v_utfstreamid, 0, __pyx_t_4, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 67, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_v_streamid = __pyx_t_5;
+      __pyx_t_5 = 0;
+
+      /* "libpythonWrapper.pyx":68
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
+ *         init_restream(streamid)             # <<<<<<<<<<<<<<
+ *         print("-------------on stream started in python plugin---------------",streamid)
+ *     except Exception as e:
+ */
+      init_restream(__pyx_v_streamid); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 68, __pyx_L3_error)
+
+      /* "libpythonWrapper.pyx":69
+ *         streamid = utfstreamid.decode('utf-8')
+ *         init_restream(streamid)
+ *         print("-------------on stream started in python plugin---------------",streamid)             # <<<<<<<<<<<<<<
+ *     except Exception as e:
+ *         print("Exception occurred in streamStarted:", e)
+ */
+      __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 69, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __Pyx_INCREF(__pyx_kp_s_on_stream_started_in_python_plu);
+      __Pyx_GIVEREF(__pyx_kp_s_on_stream_started_in_python_plu);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_kp_s_on_stream_started_in_python_plu)) __PYX_ERR(0, 69, __pyx_L3_error);
+      __Pyx_INCREF(__pyx_v_streamid);
+      __Pyx_GIVEREF(__pyx_v_streamid);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_v_streamid)) __PYX_ERR(0, 69, __pyx_L3_error);
+      __pyx_t_6 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_5, NULL); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 69, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+      /* "libpythonWrapper.pyx":66
+ * 
+ * cdef public void streamStarted(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         init_restream(streamid)
+ */
+    }
+    __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    goto __pyx_L8_try_end;
+    __pyx_L3_error:;
+    __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+    /* "libpythonWrapper.pyx":70
+ *         init_restream(streamid)
+ *         print("-------------on stream started in python plugin---------------",streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in streamStarted:", e)
+ *     return
+ */
+    __pyx_t_7 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
+    if (__pyx_t_7) {
+      __Pyx_AddTraceback("libpythonWrapper.streamStarted", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      if (__Pyx_GetException(&__pyx_t_6, &__pyx_t_5, &__pyx_t_8) < 0) __PYX_ERR(0, 70, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_5);
+      __Pyx_XGOTREF(__pyx_t_8);
+      __Pyx_INCREF(__pyx_t_5);
+      __pyx_v_e = __pyx_t_5;
+      /*try:*/ {
+
+        /* "libpythonWrapper.pyx":71
+ *         print("-------------on stream started in python plugin---------------",streamid)
+ *     except Exception as e:
+ *         print("Exception occurred in streamStarted:", e)             # <<<<<<<<<<<<<<
+ *     return
+ * 
+ */
+        __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 71, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_9);
+        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_streamStar);
+        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_streamStar);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_kp_s_Exception_occurred_in_streamStar)) __PYX_ERR(0, 71, __pyx_L14_error);
+        __Pyx_INCREF(__pyx_v_e);
+        __Pyx_GIVEREF(__pyx_v_e);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_e)) __PYX_ERR(0, 71, __pyx_L14_error);
+        __pyx_t_10 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_9, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 71, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      }
+
+      /* "libpythonWrapper.pyx":70
+ *         init_restream(streamid)
+ *         print("-------------on stream started in python plugin---------------",streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in streamStarted:", e)
+ *     return
+ */
+      /*finally:*/ {
+        /*normal exit:*/{
+          __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          goto __pyx_L15;
+        }
+        __pyx_L14_error:;
+        /*exception exit:*/{
+          __Pyx_PyThreadState_declare
+          __Pyx_PyThreadState_assign
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_16, &__pyx_t_17, &__pyx_t_18);
+          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15) < 0)) __Pyx_ErrFetch(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_13);
+          __Pyx_XGOTREF(__pyx_t_14);
+          __Pyx_XGOTREF(__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_16);
+          __Pyx_XGOTREF(__pyx_t_17);
+          __Pyx_XGOTREF(__pyx_t_18);
+          __pyx_t_7 = __pyx_lineno; __pyx_t_11 = __pyx_clineno; __pyx_t_12 = __pyx_filename;
+          {
+            __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          }
+          if (PY_MAJOR_VERSION >= 3) {
+            __Pyx_XGIVEREF(__pyx_t_16);
+            __Pyx_XGIVEREF(__pyx_t_17);
+            __Pyx_XGIVEREF(__pyx_t_18);
+            __Pyx_ExceptionReset(__pyx_t_16, __pyx_t_17, __pyx_t_18);
+          }
+          __Pyx_XGIVEREF(__pyx_t_13);
+          __Pyx_XGIVEREF(__pyx_t_14);
+          __Pyx_XGIVEREF(__pyx_t_15);
+          __Pyx_ErrRestore(__pyx_t_13, __pyx_t_14, __pyx_t_15);
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __pyx_lineno = __pyx_t_7; __pyx_clineno = __pyx_t_11; __pyx_filename = __pyx_t_12;
+          goto __pyx_L5_except_error;
+        }
+        __pyx_L15:;
+      }
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
+      goto __pyx_L4_exception_handled;
+    }
+    goto __pyx_L5_except_error;
+
+    /* "libpythonWrapper.pyx":66
+ * 
+ * cdef public void streamStarted(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         init_restream(streamid)
+ */
+    __pyx_L5_except_error:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    goto __pyx_L1_error;
+    __pyx_L4_exception_handled:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    __pyx_L8_try_end:;
+  }
+
+  /* "libpythonWrapper.pyx":72
+ *     except Exception as e:
+ *         print("Exception occurred in streamStarted:", e)
+ *     return             # <<<<<<<<<<<<<<
+ * 
+ * cdef public void streamFinished(const char* utfstreamid):
+ */
+  goto __pyx_L0;
+
+  /* "libpythonWrapper.pyx":65
+ * 
+ * 
+ * cdef public void streamStarted(const char* utfstreamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
  */
 
   /* function exit code */
@@ -2633,85 +3517,287 @@ void streamStarted(char const *__pyx_v_streamid) {
   __Pyx_XDECREF(__pyx_t_8);
   __Pyx_XDECREF(__pyx_t_9);
   __Pyx_XDECREF(__pyx_t_10);
-  __Pyx_XDECREF(__pyx_t_11);
   __Pyx_AddTraceback("libpythonWrapper.streamStarted", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
-  __Pyx_XDECREF(__pyx_v_py_streamid);
+  __Pyx_XDECREF(__pyx_v_streamid);
   __Pyx_XDECREF(__pyx_v_e);
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":36
+/* "libpythonWrapper.pyx":74
  *     return
  * 
- * cdef public void streamFinished(const char* streamid):             # <<<<<<<<<<<<<<
- *     print("-------------on stream finished in python plugin")
- *     return
+ * cdef public void streamFinished(const char* utfstreamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
  */
 
-void streamFinished(CYTHON_UNUSED char const *__pyx_v_streamid) {
+void streamFinished(char const *__pyx_v_utfstreamid) {
+  PyObject *__pyx_v_streamid = NULL;
+  PyObject *__pyx_v_e = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  Py_ssize_t __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  int __pyx_t_7;
+  PyObject *__pyx_t_8 = NULL;
+  PyObject *__pyx_t_9 = NULL;
+  PyObject *__pyx_t_10 = NULL;
+  int __pyx_t_11;
+  char const *__pyx_t_12;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
+  PyObject *__pyx_t_18 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("streamFinished", 1);
 
-  /* "libpythonWrapper.pyx":37
+  /* "libpythonWrapper.pyx":75
  * 
- * cdef public void streamFinished(const char* streamid):
- *     print("-------------on stream finished in python plugin")             # <<<<<<<<<<<<<<
+ * cdef public void streamFinished(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         uninit_restream(streamid)
+ */
+  {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    __Pyx_ExceptionSave(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3);
+    __Pyx_XGOTREF(__pyx_t_1);
+    __Pyx_XGOTREF(__pyx_t_2);
+    __Pyx_XGOTREF(__pyx_t_3);
+    /*try:*/ {
+
+      /* "libpythonWrapper.pyx":76
+ * cdef public void streamFinished(const char* utfstreamid):
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')             # <<<<<<<<<<<<<<
+ *         uninit_restream(streamid)
+ *         print("-------------on stream finished in python plugin------------------",streamid)
+ */
+      __pyx_t_4 = __Pyx_ssize_strlen(__pyx_v_utfstreamid); if (unlikely(__pyx_t_4 == ((Py_ssize_t)-1))) __PYX_ERR(0, 76, __pyx_L3_error)
+      __pyx_t_5 = __Pyx_decode_c_string(__pyx_v_utfstreamid, 0, __pyx_t_4, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 76, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_v_streamid = __pyx_t_5;
+      __pyx_t_5 = 0;
+
+      /* "libpythonWrapper.pyx":77
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
+ *         uninit_restream(streamid)             # <<<<<<<<<<<<<<
+ *         print("-------------on stream finished in python plugin------------------",streamid)
+ *     except Exception as e:
+ */
+      uninit_restream(__pyx_v_streamid); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 77, __pyx_L3_error)
+
+      /* "libpythonWrapper.pyx":78
+ *         streamid = utfstreamid.decode('utf-8')
+ *         uninit_restream(streamid)
+ *         print("-------------on stream finished in python plugin------------------",streamid)             # <<<<<<<<<<<<<<
+ *     except Exception as e:
+ *         print("Exception occurred in streamFinished:", e)
+ */
+      __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 78, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_5);
+      __Pyx_INCREF(__pyx_kp_s_on_stream_finished_in_python_pl);
+      __Pyx_GIVEREF(__pyx_kp_s_on_stream_finished_in_python_pl);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_kp_s_on_stream_finished_in_python_pl)) __PYX_ERR(0, 78, __pyx_L3_error);
+      __Pyx_INCREF(__pyx_v_streamid);
+      __Pyx_GIVEREF(__pyx_v_streamid);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_v_streamid)) __PYX_ERR(0, 78, __pyx_L3_error);
+      __pyx_t_6 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_5, NULL); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 78, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+      /* "libpythonWrapper.pyx":75
+ * 
+ * cdef public void streamFinished(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         uninit_restream(streamid)
+ */
+    }
+    __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
+    __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+    goto __pyx_L8_try_end;
+    __pyx_L3_error:;
+    __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+
+    /* "libpythonWrapper.pyx":79
+ *         uninit_restream(streamid)
+ *         print("-------------on stream finished in python plugin------------------",streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in streamFinished:", e)
+ *     return
+ */
+    __pyx_t_7 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
+    if (__pyx_t_7) {
+      __Pyx_AddTraceback("libpythonWrapper.streamFinished", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      if (__Pyx_GetException(&__pyx_t_6, &__pyx_t_5, &__pyx_t_8) < 0) __PYX_ERR(0, 79, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_5);
+      __Pyx_XGOTREF(__pyx_t_8);
+      __Pyx_INCREF(__pyx_t_5);
+      __pyx_v_e = __pyx_t_5;
+      /*try:*/ {
+
+        /* "libpythonWrapper.pyx":80
+ *         print("-------------on stream finished in python plugin------------------",streamid)
+ *     except Exception as e:
+ *         print("Exception occurred in streamFinished:", e)             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__2, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 37, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+        __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 80, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_9);
+        __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_streamFini);
+        __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_streamFini);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_kp_s_Exception_occurred_in_streamFini)) __PYX_ERR(0, 80, __pyx_L14_error);
+        __Pyx_INCREF(__pyx_v_e);
+        __Pyx_GIVEREF(__pyx_v_e);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_e)) __PYX_ERR(0, 80, __pyx_L14_error);
+        __pyx_t_10 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_9, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 80, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      }
 
-  /* "libpythonWrapper.pyx":38
- * cdef public void streamFinished(const char* streamid):
- *     print("-------------on stream finished in python plugin")
+      /* "libpythonWrapper.pyx":79
+ *         uninit_restream(streamid)
+ *         print("-------------on stream finished in python plugin------------------",streamid)
+ *     except Exception as e:             # <<<<<<<<<<<<<<
+ *         print("Exception occurred in streamFinished:", e)
+ *     return
+ */
+      /*finally:*/ {
+        /*normal exit:*/{
+          __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          goto __pyx_L15;
+        }
+        __pyx_L14_error:;
+        /*exception exit:*/{
+          __Pyx_PyThreadState_declare
+          __Pyx_PyThreadState_assign
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+          if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_16, &__pyx_t_17, &__pyx_t_18);
+          if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15) < 0)) __Pyx_ErrFetch(&__pyx_t_13, &__pyx_t_14, &__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_13);
+          __Pyx_XGOTREF(__pyx_t_14);
+          __Pyx_XGOTREF(__pyx_t_15);
+          __Pyx_XGOTREF(__pyx_t_16);
+          __Pyx_XGOTREF(__pyx_t_17);
+          __Pyx_XGOTREF(__pyx_t_18);
+          __pyx_t_7 = __pyx_lineno; __pyx_t_11 = __pyx_clineno; __pyx_t_12 = __pyx_filename;
+          {
+            __Pyx_DECREF(__pyx_v_e); __pyx_v_e = 0;
+          }
+          if (PY_MAJOR_VERSION >= 3) {
+            __Pyx_XGIVEREF(__pyx_t_16);
+            __Pyx_XGIVEREF(__pyx_t_17);
+            __Pyx_XGIVEREF(__pyx_t_18);
+            __Pyx_ExceptionReset(__pyx_t_16, __pyx_t_17, __pyx_t_18);
+          }
+          __Pyx_XGIVEREF(__pyx_t_13);
+          __Pyx_XGIVEREF(__pyx_t_14);
+          __Pyx_XGIVEREF(__pyx_t_15);
+          __Pyx_ErrRestore(__pyx_t_13, __pyx_t_14, __pyx_t_15);
+          __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0;
+          __pyx_lineno = __pyx_t_7; __pyx_clineno = __pyx_t_11; __pyx_filename = __pyx_t_12;
+          goto __pyx_L5_except_error;
+        }
+        __pyx_L15:;
+      }
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
+      goto __pyx_L4_exception_handled;
+    }
+    goto __pyx_L5_except_error;
+
+    /* "libpythonWrapper.pyx":75
+ * 
+ * cdef public void streamFinished(const char* utfstreamid):
+ *     try:             # <<<<<<<<<<<<<<
+ *         streamid = utfstreamid.decode('utf-8')
+ *         uninit_restream(streamid)
+ */
+    __pyx_L5_except_error:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    goto __pyx_L1_error;
+    __pyx_L4_exception_handled:;
+    __Pyx_XGIVEREF(__pyx_t_1);
+    __Pyx_XGIVEREF(__pyx_t_2);
+    __Pyx_XGIVEREF(__pyx_t_3);
+    __Pyx_ExceptionReset(__pyx_t_1, __pyx_t_2, __pyx_t_3);
+    __pyx_L8_try_end:;
+  }
+
+  /* "libpythonWrapper.pyx":81
+ *     except Exception as e:
+ *         print("Exception occurred in streamFinished:", e)
  *     return             # <<<<<<<<<<<<<<
  * 
  * cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":36
+  /* "libpythonWrapper.pyx":74
  *     return
  * 
- * cdef public void streamFinished(const char* streamid):             # <<<<<<<<<<<<<<
- *     print("-------------on stream finished in python plugin")
- *     return
+ * cdef public void streamFinished(const char* utfstreamid):             # <<<<<<<<<<<<<<
+ *     try:
+ *         streamid = utfstreamid.decode('utf-8')
  */
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_8);
+  __Pyx_XDECREF(__pyx_t_9);
+  __Pyx_XDECREF(__pyx_t_10);
   __Pyx_AddTraceback("libpythonWrapper.streamFinished", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_streamid);
+  __Pyx_XDECREF(__pyx_v_e);
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":40
+/* "libpythonWrapper.pyx":83
  *     return
  * 
  * cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):             # <<<<<<<<<<<<<<
- *     width = avframe.width
- *     height = avframe.height
+ *     global streamidProcessDict
+ * 
  */
 
 void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe) {
   PyObject *__pyx_v_width = NULL;
   PyObject *__pyx_v_height = NULL;
-  CYTHON_UNUSED PyObject *__pyx_v_py_streamid = NULL;
+  PyObject *__pyx_v_py_streamid = NULL;
   PyObject *__pyx_v_y_data = NULL;
   PyObject *__pyx_v_u_data = NULL;
   PyObject *__pyx_v_v_data = NULL;
   PyObject *__pyx_v_u_resized = NULL;
   PyObject *__pyx_v_v_resized = NULL;
-  PyObject *__pyx_v_yuv_image = NULL;
-  PyObject *__pyx_v_rgb_image = NULL;
+  CYTHON_UNUSED PyObject *__pyx_v_yuv_image = NULL;
+  CYTHON_UNUSED PyObject *__pyx_v_new_yuv_data = NULL;
+  PyObject *__pyx_v_new_yuv_image = NULL;
   PyObject *__pyx_v_e = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2724,8 +3810,8 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
   PyObject *__pyx_t_8 = NULL;
   PyObject *__pyx_t_9 = NULL;
   PyObject *__pyx_t_10 = NULL;
-  unsigned int __pyx_t_11;
-  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  unsigned int __pyx_t_12;
   int __pyx_t_13;
   int __pyx_t_14;
   char const *__pyx_t_15;
@@ -2740,36 +3826,36 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("onVideoFrame", 1);
 
-  /* "libpythonWrapper.pyx":41
+  /* "libpythonWrapper.pyx":86
+ *     global streamidProcessDict
  * 
- * cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):
  *     width = avframe.width             # <<<<<<<<<<<<<<
  *     height = avframe.height
  * 
  */
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_avframe->width); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 41, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_avframe->width); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 86, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_width = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "libpythonWrapper.pyx":42
- * cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):
+  /* "libpythonWrapper.pyx":87
+ * 
  *     width = avframe.width
  *     height = avframe.height             # <<<<<<<<<<<<<<
  * 
  *     try:
  */
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_avframe->height); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 42, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_avframe->height); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_height = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "libpythonWrapper.pyx":44
+  /* "libpythonWrapper.pyx":89
  *     height = avframe.height
  * 
  *     try:             # <<<<<<<<<<<<<<
- * 
- *         py_streamid = streamid.decode('utf-8')
+ *         global streamidProcessDict
+ *         py_streamid = streamid.decode('UTF-8')
  */
   {
     __Pyx_PyThreadState_declare
@@ -2780,518 +3866,673 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
     __Pyx_XGOTREF(__pyx_t_4);
     /*try:*/ {
 
-      /* "libpythonWrapper.pyx":46
+      /* "libpythonWrapper.pyx":91
  *     try:
+ *         global streamidProcessDict
+ *         py_streamid = streamid.decode('UTF-8')             # <<<<<<<<<<<<<<
  * 
- *         py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
- *         print("new test 3")
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))
+ *         # print("on video frame recieved in python : ", py_streamid,width,height,avframe.format)
  */
-      __pyx_t_5 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_5 == ((Py_ssize_t)-1))) __PYX_ERR(0, 46, __pyx_L3_error)
-      __pyx_t_1 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_5, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 46, __pyx_L3_error)
+      __pyx_t_5 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_5 == ((Py_ssize_t)-1))) __PYX_ERR(0, 91, __pyx_L3_error)
+      __pyx_t_1 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_5, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 91, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_v_py_streamid = __pyx_t_1;
       __pyx_t_1 = 0;
 
-      /* "libpythonWrapper.pyx":47
+      /* "libpythonWrapper.pyx":95
+ *         # print("on video frame recieved in python : ", py_streamid,width,height,avframe.format)
  * 
- *         py_streamid = streamid.decode('utf-8')
- *         print("new test 3")             # <<<<<<<<<<<<<<
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))
- *         u_data = np.frombuffer(avframe.data[1], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
- */
-      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 47, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-      /* "libpythonWrapper.pyx":48
- *         py_streamid = streamid.decode('utf-8')
- *         print("new test 3")
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))             # <<<<<<<<<<<<<<
+ *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width)).copy()  # Make a writable copy             # <<<<<<<<<<<<<<
  *         u_data = np.frombuffer(avframe.data[1], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
  *         v_data = np.frombuffer(avframe.data[2], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 48, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_7);
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[0])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 48, __pyx_L3_error)
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 95, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_8);
-      __Pyx_GIVEREF(__pyx_t_6);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_6)) __PYX_ERR(0, 48, __pyx_L3_error);
-      __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_np); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_uint8); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_10) < 0) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __pyx_t_10 = PyNumber_Multiply(__pyx_v_width, __pyx_v_height); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_count, __pyx_t_10) < 0) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_8, __pyx_t_6); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_reshape); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 48, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 48, __pyx_L3_error)
+      __pyx_t_7 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[0])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_9 = PyTuple_New(1); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_9);
+      __Pyx_GIVEREF(__pyx_t_7);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error);
+      __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 95, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_10);
+      __pyx_t_11 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_uint8); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_11) < 0) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __pyx_t_11 = PyNumber_Multiply(__pyx_v_width, __pyx_v_height); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_count, __pyx_t_11) < 0) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __pyx_t_11 = __Pyx_PyObject_Call(__pyx_t_8, __pyx_t_9, __pyx_t_7); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_reshape); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __pyx_t_11 = PyTuple_New(2); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
       __Pyx_INCREF(__pyx_v_height);
       __Pyx_GIVEREF(__pyx_v_height);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_v_height)) __PYX_ERR(0, 48, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_11, 0, __pyx_v_height)) __PYX_ERR(0, 95, __pyx_L3_error);
       __Pyx_INCREF(__pyx_v_width);
       __Pyx_GIVEREF(__pyx_v_width);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_v_width)) __PYX_ERR(0, 48, __pyx_L3_error);
-      __pyx_t_8 = NULL;
-      __pyx_t_11 = 0;
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_11, 1, __pyx_v_width)) __PYX_ERR(0, 95, __pyx_L3_error);
+      __pyx_t_9 = NULL;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (likely(PyMethod_Check(__pyx_t_6))) {
-        __pyx_t_8 = PyMethod_GET_SELF(__pyx_t_6);
-        if (likely(__pyx_t_8)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
-          __Pyx_INCREF(__pyx_t_8);
+      if (likely(PyMethod_Check(__pyx_t_7))) {
+        __pyx_t_9 = PyMethod_GET_SELF(__pyx_t_7);
+        if (likely(__pyx_t_9)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+          __Pyx_INCREF(__pyx_t_9);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_6, function);
-          __pyx_t_11 = 1;
+          __Pyx_DECREF_SET(__pyx_t_7, function);
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_8, __pyx_t_10};
-        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_11, 1+__pyx_t_11);
-        __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 48, __pyx_L3_error)
+        PyObject *__pyx_callargs[2] = {__pyx_t_9, __pyx_t_11};
+        __pyx_t_6 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+        __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+        if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 95, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_6);
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      }
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_copy); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 95, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __pyx_t_6 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (likely(PyMethod_Check(__pyx_t_7))) {
+        __pyx_t_6 = PyMethod_GET_SELF(__pyx_t_7);
+        if (likely(__pyx_t_6)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+          __Pyx_INCREF(__pyx_t_6);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_7, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_6, NULL};
+        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_12, 0+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 95, __pyx_L3_error)
         __Pyx_GOTREF(__pyx_t_1);
-        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       }
       __pyx_v_y_data = __pyx_t_1;
       __pyx_t_1 = 0;
 
-      /* "libpythonWrapper.pyx":49
- *         print("new test 3")
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))
+      /* "libpythonWrapper.pyx":96
+ * 
+ *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width)).copy()  # Make a writable copy
  *         u_data = np.frombuffer(avframe.data[1], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))             # <<<<<<<<<<<<<<
  *         v_data = np.frombuffer(avframe.data[2], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
  * 
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 49, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 96, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[1])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 49, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[1])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_11 = PyTuple_New(1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_GIVEREF(__pyx_t_7);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_11, 0, __pyx_t_7)) __PYX_ERR(0, 96, __pyx_L3_error);
+      __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_np); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_9);
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_uint8); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 96, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_8);
-      __Pyx_GIVEREF(__pyx_t_6);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_6)) __PYX_ERR(0, 49, __pyx_L3_error);
-      __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_uint8); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_9) < 0) __PYX_ERR(0, 49, __pyx_L3_error)
       __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_7 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_12 = PyNumber_Multiply(__pyx_t_9, __pyx_t_7); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_12);
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_count, __pyx_t_12) < 0) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-      __pyx_t_12 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_8, __pyx_t_6); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_12);
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_8) < 0) __PYX_ERR(0, 96, __pyx_L3_error)
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_12, __pyx_n_s_reshape); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-      __pyx_t_12 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 49, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_12);
-      __pyx_t_8 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 49, __pyx_L3_error)
+      __pyx_t_8 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 96, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_8);
-      __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 49, __pyx_L3_error)
+      __pyx_t_9 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_9);
+      __pyx_t_10 = PyNumber_Multiply(__pyx_t_8, __pyx_t_9); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 96, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_GIVEREF(__pyx_t_12);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_12)) __PYX_ERR(0, 49, __pyx_L3_error);
-      __Pyx_GIVEREF(__pyx_t_8);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_t_8)) __PYX_ERR(0, 49, __pyx_L3_error);
-      __pyx_t_12 = 0;
-      __pyx_t_8 = 0;
-      __pyx_t_8 = NULL;
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_count, __pyx_t_10) < 0) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_11, __pyx_t_7); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_reshape); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __pyx_t_10 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __pyx_t_11 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 96, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_GIVEREF(__pyx_t_10);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_10)) __PYX_ERR(0, 96, __pyx_L3_error);
+      __Pyx_GIVEREF(__pyx_t_11);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_11)) __PYX_ERR(0, 96, __pyx_L3_error);
+      __pyx_t_10 = 0;
       __pyx_t_11 = 0;
+      __pyx_t_11 = NULL;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (likely(PyMethod_Check(__pyx_t_6))) {
-        __pyx_t_8 = PyMethod_GET_SELF(__pyx_t_6);
-        if (likely(__pyx_t_8)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
-          __Pyx_INCREF(__pyx_t_8);
+      if (likely(PyMethod_Check(__pyx_t_7))) {
+        __pyx_t_11 = PyMethod_GET_SELF(__pyx_t_7);
+        if (likely(__pyx_t_11)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+          __Pyx_INCREF(__pyx_t_11);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_6, function);
-          __pyx_t_11 = 1;
+          __Pyx_DECREF_SET(__pyx_t_7, function);
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_8, __pyx_t_10};
-        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_11, 1+__pyx_t_11);
-        __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 49, __pyx_L3_error)
-        __Pyx_GOTREF(__pyx_t_1);
+        PyObject *__pyx_callargs[2] = {__pyx_t_11, __pyx_t_6};
+        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
         __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 96, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_1);
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       }
       __pyx_v_u_data = __pyx_t_1;
       __pyx_t_1 = 0;
 
-      /* "libpythonWrapper.pyx":50
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))
+      /* "libpythonWrapper.pyx":97
+ *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width)).copy()  # Make a writable copy
  *         u_data = np.frombuffer(avframe.data[1], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
  *         v_data = np.frombuffer(avframe.data[2], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))             # <<<<<<<<<<<<<<
  * 
- *         print("testing1 ")
+ *         u_resized = cv2.resize(u_data, (width, height), interpolation=cv2.INTER_LINEAR)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 50, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_np); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_frombuffer); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 50, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[2])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_11 = PyTuple_New(1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_GIVEREF(__pyx_t_7);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_11, 0, __pyx_t_7)) __PYX_ERR(0, 97, __pyx_L3_error);
+      __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_np); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyBytes_FromCString((__pyx_v_avframe->data[2])); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_8);
-      __Pyx_GIVEREF(__pyx_t_6);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_6)) __PYX_ERR(0, 50, __pyx_L3_error);
-      __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __Pyx_GetModuleGlobalName(__pyx_t_12, __pyx_n_s_np); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_12);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_12, __pyx_n_s_uint8); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_7);
-      __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_7) < 0) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      __pyx_t_7 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_7);
-      __pyx_t_12 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_12);
-      __pyx_t_9 = PyNumber_Multiply(__pyx_t_7, __pyx_t_12); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-      __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-      if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_count, __pyx_t_9) < 0) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_8, __pyx_t_6); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 50, __pyx_L3_error)
+      __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_uint8); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_9);
       __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_reshape); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_9) < 0) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 50, __pyx_L3_error)
+      __pyx_t_9 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_8 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 50, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_8);
-      __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 50, __pyx_L3_error)
+      __pyx_t_10 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 97, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_GIVEREF(__pyx_t_9);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_9)) __PYX_ERR(0, 50, __pyx_L3_error);
+      __pyx_t_8 = PyNumber_Multiply(__pyx_t_9, __pyx_t_10); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_count, __pyx_t_8) < 0) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_8 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_11, __pyx_t_7); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_reshape); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_8 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_height, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __pyx_t_11 = __Pyx_PyInt_FloorDivideObjC(__pyx_v_width, __pyx_int_2, 2, 0, 0); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 97, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
       __Pyx_GIVEREF(__pyx_t_8);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_t_8)) __PYX_ERR(0, 50, __pyx_L3_error);
-      __pyx_t_9 = 0;
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_8)) __PYX_ERR(0, 97, __pyx_L3_error);
+      __Pyx_GIVEREF(__pyx_t_11);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_11)) __PYX_ERR(0, 97, __pyx_L3_error);
       __pyx_t_8 = 0;
-      __pyx_t_8 = NULL;
       __pyx_t_11 = 0;
+      __pyx_t_11 = NULL;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (likely(PyMethod_Check(__pyx_t_6))) {
-        __pyx_t_8 = PyMethod_GET_SELF(__pyx_t_6);
-        if (likely(__pyx_t_8)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
-          __Pyx_INCREF(__pyx_t_8);
+      if (likely(PyMethod_Check(__pyx_t_7))) {
+        __pyx_t_11 = PyMethod_GET_SELF(__pyx_t_7);
+        if (likely(__pyx_t_11)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+          __Pyx_INCREF(__pyx_t_11);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_6, function);
-          __pyx_t_11 = 1;
+          __Pyx_DECREF_SET(__pyx_t_7, function);
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_8, __pyx_t_10};
-        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_11, 1+__pyx_t_11);
-        __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 50, __pyx_L3_error)
-        __Pyx_GOTREF(__pyx_t_1);
+        PyObject *__pyx_callargs[2] = {__pyx_t_11, __pyx_t_6};
+        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
         __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 97, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_1);
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       }
       __pyx_v_v_data = __pyx_t_1;
       __pyx_t_1 = 0;
 
-      /* "libpythonWrapper.pyx":52
+      /* "libpythonWrapper.pyx":99
  *         v_data = np.frombuffer(avframe.data[2], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
- * 
- *         print("testing1 ")             # <<<<<<<<<<<<<<
- * 
- *         u_resized = cv2.resize(u_data, (width, height), interpolation=cv2.INTER_LINEAR)
- */
-      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 52, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-      /* "libpythonWrapper.pyx":54
- *         print("testing1 ")
  * 
  *         u_resized = cv2.resize(u_data, (width, height), interpolation=cv2.INTER_LINEAR)             # <<<<<<<<<<<<<<
  *         v_resized = cv2.resize(v_data, (width, height), interpolation=cv2.INTER_LINEAR)
  * 
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_cv2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 54, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_cv2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 99, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_resize); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 54, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_resize); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 99, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 54, __pyx_L3_error)
+      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 99, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_INCREF(__pyx_v_width);
       __Pyx_GIVEREF(__pyx_v_width);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_v_width)) __PYX_ERR(0, 54, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_v_width)) __PYX_ERR(0, 99, __pyx_L3_error);
       __Pyx_INCREF(__pyx_v_height);
       __Pyx_GIVEREF(__pyx_v_height);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_v_height)) __PYX_ERR(0, 54, __pyx_L3_error);
-      __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 54, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_v_height)) __PYX_ERR(0, 99, __pyx_L3_error);
+      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 99, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
       __Pyx_INCREF(__pyx_v_u_data);
       __Pyx_GIVEREF(__pyx_v_u_data);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_v_u_data)) __PYX_ERR(0, 54, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_v_u_data)) __PYX_ERR(0, 99, __pyx_L3_error);
       __Pyx_GIVEREF(__pyx_t_1);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_t_1)) __PYX_ERR(0, 54, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_1)) __PYX_ERR(0, 99, __pyx_L3_error);
       __pyx_t_1 = 0;
-      __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 54, __pyx_L3_error)
+      __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 99, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_cv2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 54, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_cv2); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 99, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_INTER_LINEAR); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 99, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_8);
-      __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_INTER_LINEAR); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 54, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_interpolation, __pyx_t_8) < 0) __PYX_ERR(0, 99, __pyx_L3_error)
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_interpolation, __pyx_t_9) < 0) __PYX_ERR(0, 54, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_6, __pyx_t_10, __pyx_t_1); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 54, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
+      __pyx_t_8 = __Pyx_PyObject_Call(__pyx_t_7, __pyx_t_6, __pyx_t_1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 99, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_v_u_resized = __pyx_t_9;
-      __pyx_t_9 = 0;
+      __pyx_v_u_resized = __pyx_t_8;
+      __pyx_t_8 = 0;
 
-      /* "libpythonWrapper.pyx":55
+      /* "libpythonWrapper.pyx":100
  * 
  *         u_resized = cv2.resize(u_data, (width, height), interpolation=cv2.INTER_LINEAR)
  *         v_resized = cv2.resize(v_data, (width, height), interpolation=cv2.INTER_LINEAR)             # <<<<<<<<<<<<<<
  * 
- *         print("testing ")
- */
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_cv2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_resize); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __Pyx_INCREF(__pyx_v_width);
-      __Pyx_GIVEREF(__pyx_v_width);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_width)) __PYX_ERR(0, 55, __pyx_L3_error);
-      __Pyx_INCREF(__pyx_v_height);
-      __Pyx_GIVEREF(__pyx_v_height);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_height)) __PYX_ERR(0, 55, __pyx_L3_error);
-      __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_INCREF(__pyx_v_v_data);
-      __Pyx_GIVEREF(__pyx_v_v_data);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_v_v_data)) __PYX_ERR(0, 55, __pyx_L3_error);
-      __Pyx_GIVEREF(__pyx_t_9);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_t_9)) __PYX_ERR(0, 55, __pyx_L3_error);
-      __pyx_t_9 = 0;
-      __pyx_t_9 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_cv2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_INTER_LINEAR); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_8);
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (PyDict_SetItem(__pyx_t_9, __pyx_n_s_interpolation, __pyx_t_8) < 0) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __pyx_t_8 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_10, __pyx_t_9); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 55, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_8);
-      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_v_v_resized = __pyx_t_8;
-      __pyx_t_8 = 0;
-
-      /* "libpythonWrapper.pyx":57
- *         v_resized = cv2.resize(v_data, (width, height), interpolation=cv2.INTER_LINEAR)
- * 
- *         print("testing ")             # <<<<<<<<<<<<<<
- * 
  *         yuv_image = cv2.merge((y_data, u_resized, v_resized))
  */
-      __pyx_t_8 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 57, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_cv2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 100, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_8);
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_resize); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_INCREF(__pyx_v_width);
+      __Pyx_GIVEREF(__pyx_v_width);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_v_width)) __PYX_ERR(0, 100, __pyx_L3_error);
+      __Pyx_INCREF(__pyx_v_height);
+      __Pyx_GIVEREF(__pyx_v_height);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 1, __pyx_v_height)) __PYX_ERR(0, 100, __pyx_L3_error);
+      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_INCREF(__pyx_v_v_data);
+      __Pyx_GIVEREF(__pyx_v_v_data);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_v_v_data)) __PYX_ERR(0, 100, __pyx_L3_error);
+      __Pyx_GIVEREF(__pyx_t_8);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_8)) __PYX_ERR(0, 100, __pyx_L3_error);
+      __pyx_t_8 = 0;
+      __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_GetModuleGlobalName(__pyx_t_7, __pyx_n_s_cv2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_11 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_INTER_LINEAR); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_interpolation, __pyx_t_11) < 0) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __pyx_t_11 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_6, __pyx_t_8); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 100, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_11);
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_v_v_resized = __pyx_t_11;
+      __pyx_t_11 = 0;
 
-      /* "libpythonWrapper.pyx":59
- *         print("testing ")
+      /* "libpythonWrapper.pyx":102
+ *         v_resized = cv2.resize(v_data, (width, height), interpolation=cv2.INTER_LINEAR)
  * 
  *         yuv_image = cv2.merge((y_data, u_resized, v_resized))             # <<<<<<<<<<<<<<
  * 
- *         rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
+ *         # rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_cv2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 59, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_merge); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 59, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = PyTuple_New(3); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 59, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
+      __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_cv2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 102, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_merge); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 102, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_8 = PyTuple_New(3); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 102, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
       __Pyx_INCREF(__pyx_v_y_data);
       __Pyx_GIVEREF(__pyx_v_y_data);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_y_data)) __PYX_ERR(0, 59, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_v_y_data)) __PYX_ERR(0, 102, __pyx_L3_error);
       __Pyx_INCREF(__pyx_v_u_resized);
       __Pyx_GIVEREF(__pyx_v_u_resized);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_u_resized)) __PYX_ERR(0, 59, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 1, __pyx_v_u_resized)) __PYX_ERR(0, 102, __pyx_L3_error);
       __Pyx_INCREF(__pyx_v_v_resized);
       __Pyx_GIVEREF(__pyx_v_v_resized);
-      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 2, __pyx_v_v_resized)) __PYX_ERR(0, 59, __pyx_L3_error);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_8, 2, __pyx_v_v_resized)) __PYX_ERR(0, 102, __pyx_L3_error);
       __pyx_t_1 = NULL;
-      __pyx_t_11 = 0;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (unlikely(PyMethod_Check(__pyx_t_10))) {
-        __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_10);
+      if (unlikely(PyMethod_Check(__pyx_t_6))) {
+        __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_6);
         if (likely(__pyx_t_1)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_10);
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
           __Pyx_INCREF(__pyx_t_1);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_10, function);
-          __pyx_t_11 = 1;
+          __Pyx_DECREF_SET(__pyx_t_6, function);
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[2] = {__pyx_t_1, __pyx_t_9};
-        __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+1-__pyx_t_11, 1+__pyx_t_11);
+        PyObject *__pyx_callargs[2] = {__pyx_t_1, __pyx_t_8};
+        __pyx_t_11 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
         __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 59, __pyx_L3_error)
-        __Pyx_GOTREF(__pyx_t_8);
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+        if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 102, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
       }
-      __pyx_v_yuv_image = __pyx_t_8;
-      __pyx_t_8 = 0;
-
-      /* "libpythonWrapper.pyx":61
- *         yuv_image = cv2.merge((y_data, u_resized, v_resized))
- * 
- *         rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)             # <<<<<<<<<<<<<<
- * 
- *         cv2.imwrite("output.jpg", rgb_image)
- */
-      __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_cv2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 61, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_cvtColor); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 61, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_cv2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 61, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_10);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_COLOR_YUV2RGB); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 61, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-      __pyx_t_10 = NULL;
+      __pyx_v_yuv_image = __pyx_t_11;
       __pyx_t_11 = 0;
+
+      /* "libpythonWrapper.pyx":106
+ *         # rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
+ * 
+ *         cv2.rectangle(y_data, (100, 100), (400, 400), (255), -1)             # <<<<<<<<<<<<<<
+ * 
+ *         new_yuv_data = np.concatenate([y_data.flatten(), u_resized.flatten(), v_resized.flatten()])
+ */
+      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_cv2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 106, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_rectangle); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 106, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __pyx_t_6 = NULL;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (unlikely(PyMethod_Check(__pyx_t_9))) {
-        __pyx_t_10 = PyMethod_GET_SELF(__pyx_t_9);
-        if (likely(__pyx_t_10)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_9);
-          __Pyx_INCREF(__pyx_t_10);
+      if (unlikely(PyMethod_Check(__pyx_t_8))) {
+        __pyx_t_6 = PyMethod_GET_SELF(__pyx_t_8);
+        if (likely(__pyx_t_6)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_8);
+          __Pyx_INCREF(__pyx_t_6);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_9, function);
-          __pyx_t_11 = 1;
+          __Pyx_DECREF_SET(__pyx_t_8, function);
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[3] = {__pyx_t_10, __pyx_v_yuv_image, __pyx_t_1};
-        __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_9, __pyx_callargs+1-__pyx_t_11, 2+__pyx_t_11);
-        __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
-        __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 61, __pyx_L3_error)
-        __Pyx_GOTREF(__pyx_t_8);
-        __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+        PyObject *__pyx_callargs[6] = {__pyx_t_6, __pyx_v_y_data, __pyx_tuple__2, __pyx_tuple__3, __pyx_int_255, __pyx_int_neg_1};
+        __pyx_t_11 = __Pyx_PyObject_FastCall(__pyx_t_8, __pyx_callargs+1-__pyx_t_12, 5+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 106, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
       }
-      __pyx_v_rgb_image = __pyx_t_8;
-      __pyx_t_8 = 0;
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
 
-      /* "libpythonWrapper.pyx":63
- *         rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
+      /* "libpythonWrapper.pyx":108
+ *         cv2.rectangle(y_data, (100, 100), (400, 400), (255), -1)
  * 
- *         cv2.imwrite("output.jpg", rgb_image)             # <<<<<<<<<<<<<<
- *     except Exception as e:
- *         print("Exception occurred in onVideoFrame:", e)
+ *         new_yuv_data = np.concatenate([y_data.flatten(), u_resized.flatten(), v_resized.flatten()])             # <<<<<<<<<<<<<<
+ *         new_yuv_image = cv2.merge((y_data, u_resized, v_resized))
+ * 
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_cv2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 63, __pyx_L3_error)
-      __Pyx_GOTREF(__pyx_t_9);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_imwrite); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 63, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 108, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_8);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_concatenate); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 108, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_y_data, __pyx_n_s_flatten); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 108, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-      __pyx_t_9 = NULL;
-      __pyx_t_11 = 0;
+      __pyx_t_7 = NULL;
+      __pyx_t_12 = 0;
       #if CYTHON_UNPACK_METHODS
-      if (unlikely(PyMethod_Check(__pyx_t_1))) {
-        __pyx_t_9 = PyMethod_GET_SELF(__pyx_t_1);
-        if (likely(__pyx_t_9)) {
+      if (likely(PyMethod_Check(__pyx_t_1))) {
+        __pyx_t_7 = PyMethod_GET_SELF(__pyx_t_1);
+        if (likely(__pyx_t_7)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
-          __Pyx_INCREF(__pyx_t_9);
+          __Pyx_INCREF(__pyx_t_7);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_1, function);
-          __pyx_t_11 = 1;
+          __pyx_t_12 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[3] = {__pyx_t_9, __pyx_kp_s_output_jpg, __pyx_v_rgb_image};
-        __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_11, 2+__pyx_t_11);
-        __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 63, __pyx_L3_error)
+        PyObject *__pyx_callargs[2] = {__pyx_t_7, NULL};
+        __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_12, 0+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+        if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 108, __pyx_L3_error)
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
-      __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_v_u_resized, __pyx_n_s_flatten); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 108, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_7);
+      __pyx_t_10 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (likely(PyMethod_Check(__pyx_t_7))) {
+        __pyx_t_10 = PyMethod_GET_SELF(__pyx_t_7);
+        if (likely(__pyx_t_10)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_7);
+          __Pyx_INCREF(__pyx_t_10);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_7, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_10, NULL};
+        __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_7, __pyx_callargs+1-__pyx_t_12, 0+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 108, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_1);
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+      }
+      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_v_resized, __pyx_n_s_flatten); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 108, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __pyx_t_9 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (likely(PyMethod_Check(__pyx_t_10))) {
+        __pyx_t_9 = PyMethod_GET_SELF(__pyx_t_10);
+        if (likely(__pyx_t_9)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_10);
+          __Pyx_INCREF(__pyx_t_9);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_10, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_9, NULL};
+        __pyx_t_7 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+1-__pyx_t_12, 0+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+        if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 108, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_7);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      }
+      __pyx_t_10 = PyList_New(3); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 108, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __Pyx_GIVEREF(__pyx_t_8);
+      if (__Pyx_PyList_SET_ITEM(__pyx_t_10, 0, __pyx_t_8)) __PYX_ERR(0, 108, __pyx_L3_error);
+      __Pyx_GIVEREF(__pyx_t_1);
+      if (__Pyx_PyList_SET_ITEM(__pyx_t_10, 1, __pyx_t_1)) __PYX_ERR(0, 108, __pyx_L3_error);
+      __Pyx_GIVEREF(__pyx_t_7);
+      if (__Pyx_PyList_SET_ITEM(__pyx_t_10, 2, __pyx_t_7)) __PYX_ERR(0, 108, __pyx_L3_error);
+      __pyx_t_8 = 0;
+      __pyx_t_1 = 0;
+      __pyx_t_7 = 0;
+      __pyx_t_7 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (unlikely(PyMethod_Check(__pyx_t_6))) {
+        __pyx_t_7 = PyMethod_GET_SELF(__pyx_t_6);
+        if (likely(__pyx_t_7)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
+          __Pyx_INCREF(__pyx_t_7);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_6, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_7, __pyx_t_10};
+        __pyx_t_11 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 108, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      }
+      __pyx_v_new_yuv_data = __pyx_t_11;
+      __pyx_t_11 = 0;
 
-      /* "libpythonWrapper.pyx":44
+      /* "libpythonWrapper.pyx":109
+ * 
+ *         new_yuv_data = np.concatenate([y_data.flatten(), u_resized.flatten(), v_resized.flatten()])
+ *         new_yuv_image = cv2.merge((y_data, u_resized, v_resized))             # <<<<<<<<<<<<<<
+ * 
+ *         # cv2.imwrite("output.jpg", new_yuv_image)
+ */
+      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_cv2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 109, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_merge); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 109, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __pyx_t_6 = PyTuple_New(3); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 109, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_INCREF(__pyx_v_y_data);
+      __Pyx_GIVEREF(__pyx_v_y_data);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_v_y_data)) __PYX_ERR(0, 109, __pyx_L3_error);
+      __Pyx_INCREF(__pyx_v_u_resized);
+      __Pyx_GIVEREF(__pyx_v_u_resized);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_v_u_resized)) __PYX_ERR(0, 109, __pyx_L3_error);
+      __Pyx_INCREF(__pyx_v_v_resized);
+      __Pyx_GIVEREF(__pyx_v_v_resized);
+      if (__Pyx_PyTuple_SET_ITEM(__pyx_t_6, 2, __pyx_v_v_resized)) __PYX_ERR(0, 109, __pyx_L3_error);
+      __pyx_t_7 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (unlikely(PyMethod_Check(__pyx_t_10))) {
+        __pyx_t_7 = PyMethod_GET_SELF(__pyx_t_10);
+        if (likely(__pyx_t_7)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_10);
+          __Pyx_INCREF(__pyx_t_7);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_10, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_7, __pyx_t_6};
+        __pyx_t_11 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 109, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      }
+      __pyx_v_new_yuv_image = __pyx_t_11;
+      __pyx_t_11 = 0;
+
+      /* "libpythonWrapper.pyx":113
+ *         # cv2.imwrite("output.jpg", new_yuv_image)
+ * 
+ *         streamidProcessDict[py_streamid].write(new_yuv_image)             # <<<<<<<<<<<<<<
+ * 
+ *     except Exception as e:
+ */
+      __pyx_t_10 = __Pyx_PyObject_GetItem(__pyx_v_16libpythonWrapper_streamidProcessDict, __pyx_v_py_streamid); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 113, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_10);
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_10, __pyx_n_s_write); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 113, __pyx_L3_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __pyx_t_10 = NULL;
+      __pyx_t_12 = 0;
+      #if CYTHON_UNPACK_METHODS
+      if (likely(PyMethod_Check(__pyx_t_6))) {
+        __pyx_t_10 = PyMethod_GET_SELF(__pyx_t_6);
+        if (likely(__pyx_t_10)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
+          __Pyx_INCREF(__pyx_t_10);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_6, function);
+          __pyx_t_12 = 1;
+        }
+      }
+      #endif
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_10, __pyx_v_new_yuv_image};
+        __pyx_t_11 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_12, 1+__pyx_t_12);
+        __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 113, __pyx_L3_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      }
+      __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+
+      /* "libpythonWrapper.pyx":89
  *     height = avframe.height
  * 
  *     try:             # <<<<<<<<<<<<<<
- * 
- *         py_streamid = streamid.decode('utf-8')
+ *         global streamidProcessDict
+ *         py_streamid = streamid.decode('UTF-8')
  */
     }
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -3301,90 +4542,57 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
     __pyx_L3_error:;
     __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
-    __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+    __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
     __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
     __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
     __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "libpythonWrapper.pyx":64
+    /* "libpythonWrapper.pyx":115
+ *         streamidProcessDict[py_streamid].write(new_yuv_image)
  * 
- *         cv2.imwrite("output.jpg", rgb_image)
  *     except Exception as e:             # <<<<<<<<<<<<<<
  *         print("Exception occurred in onVideoFrame:", e)
- *         print("on video frame recieved in python : ", streamid,width,height,avframe.format)
+ *     return
  */
     __pyx_t_13 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])));
     if (__pyx_t_13) {
       __Pyx_AddTraceback("libpythonWrapper.onVideoFrame", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_8, &__pyx_t_1, &__pyx_t_9) < 0) __PYX_ERR(0, 64, __pyx_L5_except_error)
-      __Pyx_XGOTREF(__pyx_t_8);
-      __Pyx_XGOTREF(__pyx_t_1);
-      __Pyx_XGOTREF(__pyx_t_9);
-      __Pyx_INCREF(__pyx_t_1);
-      __pyx_v_e = __pyx_t_1;
+      if (__Pyx_GetException(&__pyx_t_11, &__pyx_t_6, &__pyx_t_10) < 0) __PYX_ERR(0, 115, __pyx_L5_except_error)
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_6);
+      __Pyx_XGOTREF(__pyx_t_10);
+      __Pyx_INCREF(__pyx_t_6);
+      __pyx_v_e = __pyx_t_6;
       /*try:*/ {
 
-        /* "libpythonWrapper.pyx":65
- *         cv2.imwrite("output.jpg", rgb_image)
+        /* "libpythonWrapper.pyx":116
+ * 
  *     except Exception as e:
  *         print("Exception occurred in onVideoFrame:", e)             # <<<<<<<<<<<<<<
- *         print("on video frame recieved in python : ", streamid,width,height,avframe.format)
  *     return
+ * 
  */
-        __pyx_t_10 = PyTuple_New(2); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 65, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_10);
+        __pyx_t_7 = PyTuple_New(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 116, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_7);
         __Pyx_INCREF(__pyx_kp_s_Exception_occurred_in_onVideoFra);
         __Pyx_GIVEREF(__pyx_kp_s_Exception_occurred_in_onVideoFra);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_kp_s_Exception_occurred_in_onVideoFra)) __PYX_ERR(0, 65, __pyx_L14_error);
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_kp_s_Exception_occurred_in_onVideoFra)) __PYX_ERR(0, 116, __pyx_L14_error);
         __Pyx_INCREF(__pyx_v_e);
         __Pyx_GIVEREF(__pyx_v_e);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_10, 1, __pyx_v_e)) __PYX_ERR(0, 65, __pyx_L14_error);
-        __pyx_t_6 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_10, NULL); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 65, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_6);
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-
-        /* "libpythonWrapper.pyx":66
- *     except Exception as e:
- *         print("Exception occurred in onVideoFrame:", e)
- *         print("on video frame recieved in python : ", streamid,width,height,avframe.format)             # <<<<<<<<<<<<<<
- *     return
- * 
- */
-        __pyx_t_6 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 66, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_6);
-        __pyx_t_10 = __Pyx_PyInt_From_int(__pyx_v_avframe->format); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 66, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_10);
-        __pyx_t_12 = PyTuple_New(5); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 66, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_12);
-        __Pyx_INCREF(__pyx_kp_s_on_video_frame_recieved_in_pytho);
-        __Pyx_GIVEREF(__pyx_kp_s_on_video_frame_recieved_in_pytho);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_kp_s_on_video_frame_recieved_in_pytho)) __PYX_ERR(0, 66, __pyx_L14_error);
-        __Pyx_GIVEREF(__pyx_t_6);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 1, __pyx_t_6)) __PYX_ERR(0, 66, __pyx_L14_error);
-        __Pyx_INCREF(__pyx_v_width);
-        __Pyx_GIVEREF(__pyx_v_width);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 2, __pyx_v_width)) __PYX_ERR(0, 66, __pyx_L14_error);
-        __Pyx_INCREF(__pyx_v_height);
-        __Pyx_GIVEREF(__pyx_v_height);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 3, __pyx_v_height)) __PYX_ERR(0, 66, __pyx_L14_error);
-        __Pyx_GIVEREF(__pyx_t_10);
-        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_12, 4, __pyx_t_10)) __PYX_ERR(0, 66, __pyx_L14_error);
-        __pyx_t_6 = 0;
-        __pyx_t_10 = 0;
-        __pyx_t_10 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_12, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 66, __pyx_L14_error)
-        __Pyx_GOTREF(__pyx_t_10);
-        __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (__Pyx_PyTuple_SET_ITEM(__pyx_t_7, 1, __pyx_v_e)) __PYX_ERR(0, 116, __pyx_L14_error);
+        __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_7, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 116, __pyx_L14_error)
+        __Pyx_GOTREF(__pyx_t_1);
+        __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
+        __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
 
-      /* "libpythonWrapper.pyx":64
+      /* "libpythonWrapper.pyx":115
+ *         streamidProcessDict[py_streamid].write(new_yuv_image)
  * 
- *         cv2.imwrite("output.jpg", rgb_image)
  *     except Exception as e:             # <<<<<<<<<<<<<<
  *         print("Exception occurred in onVideoFrame:", e)
- *         print("on video frame recieved in python : ", streamid,width,height,avframe.format)
+ *     return
  */
       /*finally:*/ {
         /*normal exit:*/{
@@ -3396,10 +4604,10 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
           __Pyx_PyThreadState_declare
           __Pyx_PyThreadState_assign
           __pyx_t_16 = 0; __pyx_t_17 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0; __pyx_t_21 = 0;
-          __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
-          __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
-          __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+          __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
           __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
+          __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
+          __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
           if (PY_MAJOR_VERSION >= 3) __Pyx_ExceptionSwap(&__pyx_t_19, &__pyx_t_20, &__pyx_t_21);
           if ((PY_MAJOR_VERSION < 3) || unlikely(__Pyx_GetException(&__pyx_t_16, &__pyx_t_17, &__pyx_t_18) < 0)) __Pyx_ErrFetch(&__pyx_t_16, &__pyx_t_17, &__pyx_t_18);
           __Pyx_XGOTREF(__pyx_t_16);
@@ -3428,19 +4636,19 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
         }
         __pyx_L15:;
       }
-      __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
+      __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
       goto __pyx_L4_exception_handled;
     }
     goto __pyx_L5_except_error;
 
-    /* "libpythonWrapper.pyx":44
+    /* "libpythonWrapper.pyx":89
  *     height = avframe.height
  * 
  *     try:             # <<<<<<<<<<<<<<
- * 
- *         py_streamid = streamid.decode('utf-8')
+ *         global streamidProcessDict
+ *         py_streamid = streamid.decode('UTF-8')
  */
     __pyx_L5_except_error:;
     __Pyx_XGIVEREF(__pyx_t_2);
@@ -3456,21 +4664,21 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
     __pyx_L8_try_end:;
   }
 
-  /* "libpythonWrapper.pyx":67
+  /* "libpythonWrapper.pyx":117
+ *     except Exception as e:
  *         print("Exception occurred in onVideoFrame:", e)
- *         print("on video frame recieved in python : ", streamid,width,height,avframe.format)
  *     return             # <<<<<<<<<<<<<<
  * 
  * cdef public void onAudioFrame(const char* streamid, avfame):
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":40
+  /* "libpythonWrapper.pyx":83
  *     return
  * 
  * cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):             # <<<<<<<<<<<<<<
- *     width = avframe.width
- *     height = avframe.height
+ *     global streamidProcessDict
+ * 
  */
 
   /* function exit code */
@@ -3481,7 +4689,7 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
   __Pyx_XDECREF(__pyx_t_8);
   __Pyx_XDECREF(__pyx_t_9);
   __Pyx_XDECREF(__pyx_t_10);
-  __Pyx_XDECREF(__pyx_t_12);
+  __Pyx_XDECREF(__pyx_t_11);
   __Pyx_AddTraceback("libpythonWrapper.onVideoFrame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_width);
@@ -3493,17 +4701,18 @@ void onVideoFrame(char const *__pyx_v_streamid, struct AVFrame *__pyx_v_avframe)
   __Pyx_XDECREF(__pyx_v_u_resized);
   __Pyx_XDECREF(__pyx_v_v_resized);
   __Pyx_XDECREF(__pyx_v_yuv_image);
-  __Pyx_XDECREF(__pyx_v_rgb_image);
+  __Pyx_XDECREF(__pyx_v_new_yuv_data);
+  __Pyx_XDECREF(__pyx_v_new_yuv_image);
   __Pyx_XDECREF(__pyx_v_e);
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":69
+/* "libpythonWrapper.pyx":119
  *     return
  * 
  * cdef public void onAudioFrame(const char* streamid, avfame):             # <<<<<<<<<<<<<<
  *     py_streamid = streamid.decode('utf-8')
- *     # print("on audio frame recieved in python : ", streamid)
+ *     print("on audio frame recieved in python : ", streamid)
  */
 
 void onAudioFrame(char const *__pyx_v_streamid, CYTHON_UNUSED PyObject *__pyx_v_avfame) {
@@ -3511,51 +4720,75 @@ void onAudioFrame(char const *__pyx_v_streamid, CYTHON_UNUSED PyObject *__pyx_v_
   __Pyx_RefNannyDeclarations
   Py_ssize_t __pyx_t_1;
   PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("onAudioFrame", 1);
 
-  /* "libpythonWrapper.pyx":70
+  /* "libpythonWrapper.pyx":120
  * 
  * cdef public void onAudioFrame(const char* streamid, avfame):
  *     py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
- *     # print("on audio frame recieved in python : ", streamid)
+ *     print("on audio frame recieved in python : ", streamid)
  *     return
  */
-  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 70, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 70, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_py_streamid = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":72
+  /* "libpythonWrapper.pyx":121
+ * cdef public void onAudioFrame(const char* streamid, avfame):
  *     py_streamid = streamid.decode('utf-8')
- *     # print("on audio frame recieved in python : ", streamid)
+ *     print("on audio frame recieved in python : ", streamid)             # <<<<<<<<<<<<<<
+ *     return
+ * 
+ */
+  __pyx_t_2 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_INCREF(__pyx_kp_s_on_audio_frame_recieved_in_pytho);
+  __Pyx_GIVEREF(__pyx_kp_s_on_audio_frame_recieved_in_pytho);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_s_on_audio_frame_recieved_in_pytho)) __PYX_ERR(0, 121, __pyx_L1_error);
+  __Pyx_GIVEREF(__pyx_t_2);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error);
+  __pyx_t_2 = 0;
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "libpythonWrapper.pyx":122
+ *     py_streamid = streamid.decode('utf-8')
+ *     print("on audio frame recieved in python : ", streamid)
  *     return             # <<<<<<<<<<<<<<
  * 
  * cdef public void onVideoPacket(const char* streamid, AVPacket *avpacket):
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":69
+  /* "libpythonWrapper.pyx":119
  *     return
  * 
  * cdef public void onAudioFrame(const char* streamid, avfame):             # <<<<<<<<<<<<<<
  *     py_streamid = streamid.decode('utf-8')
- *     # print("on audio frame recieved in python : ", streamid)
+ *     print("on audio frame recieved in python : ", streamid)
  */
 
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_XDECREF(__pyx_t_3);
   __Pyx_AddTraceback("libpythonWrapper.onAudioFrame", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_py_streamid);
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":74
+/* "libpythonWrapper.pyx":124
  *     return
  * 
  * cdef public void onVideoPacket(const char* streamid, AVPacket *avpacket):             # <<<<<<<<<<<<<<
@@ -3574,42 +4807,42 @@ void onVideoPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("onVideoPacket", 1);
 
-  /* "libpythonWrapper.pyx":75
+  /* "libpythonWrapper.pyx":125
  * 
  * cdef public void onVideoPacket(const char* streamid, AVPacket *avpacket):
  *     py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
  *     print("on video packet recieved in python : ", streamid)
  *     return
  */
-  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 75, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 75, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 125, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 125, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_py_streamid = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":76
+  /* "libpythonWrapper.pyx":126
  * cdef public void onVideoPacket(const char* streamid, AVPacket *avpacket):
  *     py_streamid = streamid.decode('utf-8')
  *     print("on video packet recieved in python : ", streamid)             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-  __pyx_t_2 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 76, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 76, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 126, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_INCREF(__pyx_kp_s_on_video_packet_recieved_in_pyth);
   __Pyx_GIVEREF(__pyx_kp_s_on_video_packet_recieved_in_pyth);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_s_on_video_packet_recieved_in_pyth)) __PYX_ERR(0, 76, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_s_on_video_packet_recieved_in_pyth)) __PYX_ERR(0, 126, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_2);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_2)) __PYX_ERR(0, 76, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error);
   __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 76, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":77
+  /* "libpythonWrapper.pyx":127
  *     py_streamid = streamid.decode('utf-8')
  *     print("on video packet recieved in python : ", streamid)
  *     return             # <<<<<<<<<<<<<<
@@ -3618,7 +4851,7 @@ void onVideoPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":74
+  /* "libpythonWrapper.pyx":124
  *     return
  * 
  * cdef public void onVideoPacket(const char* streamid, AVPacket *avpacket):             # <<<<<<<<<<<<<<
@@ -3636,7 +4869,7 @@ void onVideoPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":79
+/* "libpythonWrapper.pyx":129
  *     return
  * 
  * cdef public void onAudioPacket(const char *streamid, AVPacket *avpacket):             # <<<<<<<<<<<<<<
@@ -3655,42 +4888,42 @@ void onAudioPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("onAudioPacket", 1);
 
-  /* "libpythonWrapper.pyx":80
+  /* "libpythonWrapper.pyx":130
  * 
  * cdef public void onAudioPacket(const char *streamid, AVPacket *avpacket):
  *     py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
  *     print("on audio packet recieved in python : ", streamid)
  *     return
  */
-  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 80, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 80, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 130, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 130, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_py_streamid = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":81
+  /* "libpythonWrapper.pyx":131
  * cdef public void onAudioPacket(const char *streamid, AVPacket *avpacket):
  *     py_streamid = streamid.decode('utf-8')
  *     print("on audio packet recieved in python : ", streamid)             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-  __pyx_t_2 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 81, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_FromString(__pyx_v_streamid); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 81, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 131, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_INCREF(__pyx_kp_s_on_audio_packet_recieved_in_pyth);
   __Pyx_GIVEREF(__pyx_kp_s_on_audio_packet_recieved_in_pyth);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_s_on_audio_packet_recieved_in_pyth)) __PYX_ERR(0, 81, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_kp_s_on_audio_packet_recieved_in_pyth)) __PYX_ERR(0, 131, __pyx_L1_error);
   __Pyx_GIVEREF(__pyx_t_2);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_2)) __PYX_ERR(0, 81, __pyx_L1_error);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error);
   __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 81, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_t_3, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 131, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":82
+  /* "libpythonWrapper.pyx":132
  *     py_streamid = streamid.decode('utf-8')
  *     print("on audio packet recieved in python : ", streamid)
  *     return             # <<<<<<<<<<<<<<
@@ -3699,7 +4932,7 @@ void onAudioPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":79
+  /* "libpythonWrapper.pyx":129
  *     return
  * 
  * cdef public void onAudioPacket(const char *streamid, AVPacket *avpacket):             # <<<<<<<<<<<<<<
@@ -3717,7 +4950,7 @@ void onAudioPacket(char const *__pyx_v_streamid, CYTHON_UNUSED struct AVPacket *
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":84
+/* "libpythonWrapper.pyx":134
  *     return
  * 
  * cdef public void setVideoStreamInfo(const char* streamid,const void *audioStreamInfo):             # <<<<<<<<<<<<<<
@@ -3735,31 +4968,31 @@ void setVideoStreamInfo(char const *__pyx_v_streamid, CYTHON_UNUSED void const *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("setVideoStreamInfo", 1);
 
-  /* "libpythonWrapper.pyx":85
+  /* "libpythonWrapper.pyx":135
  * 
  * cdef public void setVideoStreamInfo(const char* streamid,const void *audioStreamInfo):
  *     py_streamid = streamid.decode('utf-8')             # <<<<<<<<<<<<<<
  *     print("on video stream info")
  *     return
  */
-  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 85, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 85, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_ssize_strlen(__pyx_v_streamid); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 135, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_decode_c_string(__pyx_v_streamid, 0, __pyx_t_1, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 135, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_py_streamid = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":86
+  /* "libpythonWrapper.pyx":136
  * cdef public void setVideoStreamInfo(const char* streamid,const void *audioStreamInfo):
  *     py_streamid = streamid.decode('utf-8')
  *     print("on video stream info")             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 136, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":87
+  /* "libpythonWrapper.pyx":137
  *     py_streamid = streamid.decode('utf-8')
  *     print("on video stream info")
  *     return             # <<<<<<<<<<<<<<
@@ -3768,7 +5001,7 @@ void setVideoStreamInfo(char const *__pyx_v_streamid, CYTHON_UNUSED void const *
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":84
+  /* "libpythonWrapper.pyx":134
  *     return
  * 
  * cdef public void setVideoStreamInfo(const char* streamid,const void *audioStreamInfo):             # <<<<<<<<<<<<<<
@@ -3785,7 +5018,7 @@ void setVideoStreamInfo(char const *__pyx_v_streamid, CYTHON_UNUSED void const *
   __Pyx_RefNannyFinishContext();
 }
 
-/* "libpythonWrapper.pyx":89
+/* "libpythonWrapper.pyx":139
  *     return
  * 
  * cdef public void setAudioStreamInfo(const char* streamId, const void *audioStreamInfo):             # <<<<<<<<<<<<<<
@@ -3801,24 +5034,24 @@ void setAudioStreamInfo(CYTHON_UNUSED char const *__pyx_v_streamId, CYTHON_UNUSE
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("setAudioStreamInfo", 1);
 
-  /* "libpythonWrapper.pyx":90
+  /* "libpythonWrapper.pyx":140
  * 
  * cdef public void setAudioStreamInfo(const char* streamId, const void *audioStreamInfo):
  *     print("on audio stream info")             # <<<<<<<<<<<<<<
  *     return
  */
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 140, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "libpythonWrapper.pyx":91
+  /* "libpythonWrapper.pyx":141
  * cdef public void setAudioStreamInfo(const char* streamId, const void *audioStreamInfo):
  *     print("on audio stream info")
  *     return             # <<<<<<<<<<<<<<
  */
   goto __pyx_L0;
 
-  /* "libpythonWrapper.pyx":89
+  /* "libpythonWrapper.pyx":139
  *     return
  * 
  * cdef public void setAudioStreamInfo(const char* streamId, const void *audioStreamInfo):             # <<<<<<<<<<<<<<
@@ -3842,6 +5075,8 @@ static int __pyx_import_star_set(PyObject *o, PyObject* py_name, char *name) {
   static const char* internal_type_names[] = {
     "AVFrame",
     "AVPacket",
+    "__pyx_ctuple_long__and_long",
+    "__pyx_ctuple_long__and_long_struct",
     "__pyx_ctuple_uint8_t__ptr",
     "__pyx_ctuple_uint8_t__ptr_struct",
     "int16_t",
@@ -3863,6 +5098,11 @@ static int __pyx_import_star_set(PyObject *o, PyObject* py_name, char *name) {
     type_name++;
   }
   if (0);
+  else if (__Pyx_StrEq(name, "streamidProcessDict")) {
+    Py_INCREF(o);
+    Py_DECREF(__pyx_v_16libpythonWrapper_streamidProcessDict);
+    __pyx_v_16libpythonWrapper_streamidProcessDict = o;
+  }
   else {
     if (PyObject_SetAttr(__pyx_m, py_name, o) < 0) goto bad;
   }
@@ -3990,55 +5230,66 @@ bad:
 
 static int __Pyx_CreateStringTabAndInitStrings(void) {
   __Pyx_StringTabEntry __pyx_string_tab[] = {
-    {&__pyx_n_s_COLOR_YUV2RGB, __pyx_k_COLOR_YUV2RGB, sizeof(__pyx_k_COLOR_YUV2RGB), 0, 0, 1, 1},
+    {&__pyx_kp_s_Exception_occurred_in_init_pytho, __pyx_k_Exception_occurred_in_init_pytho, sizeof(__pyx_k_Exception_occurred_in_init_pytho), 0, 0, 1, 0},
+    {&__pyx_kp_s_Exception_occurred_in_init_restr, __pyx_k_Exception_occurred_in_init_restr, sizeof(__pyx_k_Exception_occurred_in_init_restr), 0, 0, 1, 0},
     {&__pyx_kp_s_Exception_occurred_in_onVideoFra, __pyx_k_Exception_occurred_in_onVideoFra, sizeof(__pyx_k_Exception_occurred_in_onVideoFra), 0, 0, 1, 0},
+    {&__pyx_kp_s_Exception_occurred_in_streamFini, __pyx_k_Exception_occurred_in_streamFini, sizeof(__pyx_k_Exception_occurred_in_streamFini), 0, 0, 1, 0},
     {&__pyx_kp_s_Exception_occurred_in_streamStar, __pyx_k_Exception_occurred_in_streamStar, sizeof(__pyx_k_Exception_occurred_in_streamStar), 0, 0, 1, 0},
+    {&__pyx_kp_s_Exception_occurred_in_uninit_res, __pyx_k_Exception_occurred_in_uninit_res, sizeof(__pyx_k_Exception_occurred_in_uninit_res), 0, 0, 1, 0},
     {&__pyx_n_s_INTER_LINEAR, __pyx_k_INTER_LINEAR, sizeof(__pyx_k_INTER_LINEAR), 0, 0, 1, 1},
+    {&__pyx_n_s_VideoWriter, __pyx_k_VideoWriter, sizeof(__pyx_k_VideoWriter), 0, 0, 1, 1},
+    {&__pyx_n_s__6, __pyx_k__6, sizeof(__pyx_k__6), 0, 0, 1, 1},
     {&__pyx_n_s__7, __pyx_k__7, sizeof(__pyx_k__7), 0, 0, 1, 1},
-    {&__pyx_n_s__8, __pyx_k__8, sizeof(__pyx_k__8), 0, 0, 1, 1},
+    {&__pyx_kp_s_appsrc_videoconvert_video_x_raw, __pyx_k_appsrc_videoconvert_video_x_raw, sizeof(__pyx_k_appsrc_videoconvert_video_x_raw), 0, 0, 1, 0},
+    {&__pyx_n_s_class_getitem, __pyx_k_class_getitem, sizeof(__pyx_k_class_getitem), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
+    {&__pyx_n_s_concatenate, __pyx_k_concatenate, sizeof(__pyx_k_concatenate), 0, 0, 1, 1},
+    {&__pyx_n_s_copy, __pyx_k_copy, sizeof(__pyx_k_copy), 0, 0, 1, 1},
     {&__pyx_n_s_count, __pyx_k_count, sizeof(__pyx_k_count), 0, 0, 1, 1},
     {&__pyx_n_s_cv2, __pyx_k_cv2, sizeof(__pyx_k_cv2), 0, 0, 1, 1},
-    {&__pyx_n_s_cvtColor, __pyx_k_cvtColor, sizeof(__pyx_k_cvtColor), 0, 0, 1, 1},
     {&__pyx_n_s_cypes, __pyx_k_cypes, sizeof(__pyx_k_cypes), 0, 0, 1, 1},
+    {&__pyx_kp_s_done_writer_for_stream, __pyx_k_done_writer_for_stream, sizeof(__pyx_k_done_writer_for_stream), 0, 0, 1, 0},
     {&__pyx_n_s_dtype, __pyx_k_dtype, sizeof(__pyx_k_dtype), 0, 0, 1, 1},
+    {&__pyx_kp_s_failed_to_release_video_stream_n, __pyx_k_failed_to_release_video_stream_n, sizeof(__pyx_k_failed_to_release_video_stream_n), 0, 0, 1, 0},
+    {&__pyx_n_s_flatten, __pyx_k_flatten, sizeof(__pyx_k_flatten), 0, 0, 1, 1},
     {&__pyx_n_s_frombuffer, __pyx_k_frombuffer, sizeof(__pyx_k_frombuffer), 0, 0, 1, 1},
+    {&__pyx_n_s_frompython, __pyx_k_frompython, sizeof(__pyx_k_frompython), 0, 0, 1, 1},
     {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
-    {&__pyx_n_s_imwrite, __pyx_k_imwrite, sizeof(__pyx_k_imwrite), 0, 0, 1, 1},
     {&__pyx_n_s_initializing, __pyx_k_initializing, sizeof(__pyx_k_initializing), 0, 0, 1, 1},
+    {&__pyx_kp_s_initializing_writer_for_stream, __pyx_k_initializing_writer_for_stream, sizeof(__pyx_k_initializing_writer_for_stream), 0, 0, 1, 0},
     {&__pyx_n_s_interpolation, __pyx_k_interpolation, sizeof(__pyx_k_interpolation), 0, 0, 1, 1},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
     {&__pyx_n_s_merge, __pyx_k_merge, sizeof(__pyx_k_merge), 0, 0, 1, 1},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
-    {&__pyx_kp_s_new_test_3, __pyx_k_new_test_3, sizeof(__pyx_k_new_test_3), 0, 0, 1, 0},
     {&__pyx_n_s_np, __pyx_k_np, sizeof(__pyx_k_np), 0, 0, 1, 1},
     {&__pyx_n_s_numpy, __pyx_k_numpy, sizeof(__pyx_k_numpy), 0, 0, 1, 1},
+    {&__pyx_kp_s_on_audio_frame_recieved_in_pytho, __pyx_k_on_audio_frame_recieved_in_pytho, sizeof(__pyx_k_on_audio_frame_recieved_in_pytho), 0, 0, 1, 0},
     {&__pyx_kp_s_on_audio_packet_recieved_in_pyth, __pyx_k_on_audio_packet_recieved_in_pyth, sizeof(__pyx_k_on_audio_packet_recieved_in_pyth), 0, 0, 1, 0},
     {&__pyx_kp_s_on_audio_stream_info, __pyx_k_on_audio_stream_info, sizeof(__pyx_k_on_audio_stream_info), 0, 0, 1, 0},
     {&__pyx_kp_s_on_stream_finished_in_python_pl, __pyx_k_on_stream_finished_in_python_pl, sizeof(__pyx_k_on_stream_finished_in_python_pl), 0, 0, 1, 0},
     {&__pyx_kp_s_on_stream_started_in_python_plu, __pyx_k_on_stream_started_in_python_plu, sizeof(__pyx_k_on_stream_started_in_python_plu), 0, 0, 1, 0},
-    {&__pyx_kp_s_on_video_frame_recieved_in_pytho, __pyx_k_on_video_frame_recieved_in_pytho, sizeof(__pyx_k_on_video_frame_recieved_in_pytho), 0, 0, 1, 0},
     {&__pyx_kp_s_on_video_packet_recieved_in_pyth, __pyx_k_on_video_packet_recieved_in_pyth, sizeof(__pyx_k_on_video_packet_recieved_in_pyth), 0, 0, 1, 0},
     {&__pyx_kp_s_on_video_stream_info, __pyx_k_on_video_stream_info, sizeof(__pyx_k_on_video_stream_info), 0, 0, 1, 0},
-    {&__pyx_kp_s_output_jpg, __pyx_k_output_jpg, sizeof(__pyx_k_output_jpg), 0, 0, 1, 0},
     {&__pyx_n_s_print, __pyx_k_print, sizeof(__pyx_k_print), 0, 0, 1, 1},
-    {&__pyx_n_s_print_exc, __pyx_k_print_exc, sizeof(__pyx_k_print_exc), 0, 0, 1, 1},
+    {&__pyx_n_s_rectangle, __pyx_k_rectangle, sizeof(__pyx_k_rectangle), 0, 0, 1, 1},
+    {&__pyx_n_s_release, __pyx_k_release, sizeof(__pyx_k_release), 0, 0, 1, 1},
+    {&__pyx_kp_s_releasing_resources_for, __pyx_k_releasing_resources_for, sizeof(__pyx_k_releasing_resources_for), 0, 0, 1, 0},
     {&__pyx_n_s_reshape, __pyx_k_reshape, sizeof(__pyx_k_reshape), 0, 0, 1, 1},
     {&__pyx_n_s_resize, __pyx_k_resize, sizeof(__pyx_k_resize), 0, 0, 1, 1},
+    {&__pyx_kp_s_rtmp_127_0_0_1_WebRTCAppEE, __pyx_k_rtmp_127_0_0_1_WebRTCAppEE, sizeof(__pyx_k_rtmp_127_0_0_1_WebRTCAppEE), 0, 0, 1, 0},
     {&__pyx_n_s_spec, __pyx_k_spec, sizeof(__pyx_k_spec), 0, 0, 1, 1},
+    {&__pyx_n_s_subprocess, __pyx_k_subprocess, sizeof(__pyx_k_subprocess), 0, 0, 1, 1},
     {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
-    {&__pyx_kp_s_testing, __pyx_k_testing, sizeof(__pyx_k_testing), 0, 0, 1, 0},
-    {&__pyx_kp_s_testing1, __pyx_k_testing1, sizeof(__pyx_k_testing1), 0, 0, 1, 0},
     {&__pyx_n_s_time, __pyx_k_time, sizeof(__pyx_k_time), 0, 0, 1, 1},
-    {&__pyx_n_s_traceback, __pyx_k_traceback, sizeof(__pyx_k_traceback), 0, 0, 1, 1},
     {&__pyx_n_s_uint8, __pyx_k_uint8, sizeof(__pyx_k_uint8), 0, 0, 1, 1},
+    {&__pyx_n_s_write, __pyx_k_write, sizeof(__pyx_k_write), 0, 0, 1, 1},
     {0, 0, 0, 0, 0, 0, 0}
   };
   return __Pyx_InitStrings(__pyx_string_tab);
 }
 /* #### Code section: cached_builtins ### */
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 20, __pyx_L1_error)
+  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 31, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -4049,70 +5300,51 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "libpythonWrapper.pyx":20
+  /* "libpythonWrapper.pyx":42
+ *         send_gst = " appsrc !  videoconvert ! video/x-raw,format=I420 ! videoconvert ! x264enc tune=zerolatency speed-preset=veryfast  ! video/x-h264,stream-format=byte-stream,alignment=au ! h264parse ! queue !  flvmux ! rtmpsink location=" + rtmpUrl
  * 
- * cdef public avframe_to_rgb(AVFrame *avframe, int width, int height):
- *     print("testing ")             # <<<<<<<<<<<<<<
- *     # return rgb_image
+ *         out_send = cv2.VideoWriter(send_gst, 0, 30, (640, 480))             # <<<<<<<<<<<<<<
  * 
+ *         print("done writer for stream "+streamid)
  */
-  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_s_testing); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 20, __pyx_L1_error)
+  __pyx_tuple_ = PyTuple_Pack(2, __pyx_int_640, __pyx_int_480); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 42, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
-  /* "libpythonWrapper.pyx":37
+  /* "libpythonWrapper.pyx":106
+ *         # rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
  * 
- * cdef public void streamFinished(const char* streamid):
- *     print("-------------on stream finished in python plugin")             # <<<<<<<<<<<<<<
- *     return
+ *         cv2.rectangle(y_data, (100, 100), (400, 400), (255), -1)             # <<<<<<<<<<<<<<
  * 
+ *         new_yuv_data = np.concatenate([y_data.flatten(), u_resized.flatten(), v_resized.flatten()])
  */
-  __pyx_tuple__2 = PyTuple_Pack(1, __pyx_kp_s_on_stream_finished_in_python_pl); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(0, 37, __pyx_L1_error)
+  __pyx_tuple__2 = PyTuple_Pack(2, __pyx_int_100, __pyx_int_100); if (unlikely(!__pyx_tuple__2)) __PYX_ERR(0, 106, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
-
-  /* "libpythonWrapper.pyx":47
- * 
- *         py_streamid = streamid.decode('utf-8')
- *         print("new test 3")             # <<<<<<<<<<<<<<
- *         y_data = np.frombuffer(avframe.data[0], dtype=np.uint8, count=width * height).reshape((height, width))
- *         u_data = np.frombuffer(avframe.data[1], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
- */
-  __pyx_tuple__3 = PyTuple_Pack(1, __pyx_kp_s_new_test_3); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 47, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(2, __pyx_int_400, __pyx_int_400); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 106, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "libpythonWrapper.pyx":52
- *         v_data = np.frombuffer(avframe.data[2], dtype=np.uint8, count=(width // 2) * (height // 2)).reshape((height // 2, width // 2))
- * 
- *         print("testing1 ")             # <<<<<<<<<<<<<<
- * 
- *         u_resized = cv2.resize(u_data, (width, height), interpolation=cv2.INTER_LINEAR)
- */
-  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_testing1); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 52, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__4);
-  __Pyx_GIVEREF(__pyx_tuple__4);
-
-  /* "libpythonWrapper.pyx":86
+  /* "libpythonWrapper.pyx":136
  * cdef public void setVideoStreamInfo(const char* streamid,const void *audioStreamInfo):
  *     py_streamid = streamid.decode('utf-8')
  *     print("on video stream info")             # <<<<<<<<<<<<<<
  *     return
  * 
  */
-  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_kp_s_on_video_stream_info); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 86, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__5);
-  __Pyx_GIVEREF(__pyx_tuple__5);
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_on_video_stream_info); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__4);
+  __Pyx_GIVEREF(__pyx_tuple__4);
 
-  /* "libpythonWrapper.pyx":90
+  /* "libpythonWrapper.pyx":140
  * 
  * cdef public void setAudioStreamInfo(const char* streamId, const void *audioStreamInfo):
  *     print("on audio stream info")             # <<<<<<<<<<<<<<
  *     return
  */
-  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_s_on_audio_stream_info); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 90, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_tuple__6);
-  __Pyx_GIVEREF(__pyx_tuple__6);
+  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_kp_s_on_audio_stream_info); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 140, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__5);
+  __Pyx_GIVEREF(__pyx_tuple__5);
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -4123,7 +5355,15 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
 static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {
   if (__Pyx_CreateStringTabAndInitStrings() < 0) __PYX_ERR(0, 1, __pyx_L1_error);
+  __pyx_int_0 = PyInt_FromLong(0); if (unlikely(!__pyx_int_0)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_2 = PyInt_FromLong(2); if (unlikely(!__pyx_int_2)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_30 = PyInt_FromLong(30); if (unlikely(!__pyx_int_30)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_100 = PyInt_FromLong(100); if (unlikely(!__pyx_int_100)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_255 = PyInt_FromLong(255); if (unlikely(!__pyx_int_255)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_400 = PyInt_FromLong(400); if (unlikely(!__pyx_int_400)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_480 = PyInt_FromLong(480); if (unlikely(!__pyx_int_480)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_640 = PyInt_FromLong(640); if (unlikely(!__pyx_int_640)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_neg_1 = PyInt_FromLong(-1); if (unlikely(!__pyx_int_neg_1)) __PYX_ERR(0, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -4147,6 +5387,7 @@ static int __Pyx_modinit_global_init_code(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_modinit_global_init_code", 0);
   /*--- Global init code ---*/
+  __pyx_v_16libpythonWrapper_streamidProcessDict = Py_None; Py_INCREF(Py_None);
   __Pyx_RefNannyFinishContext();
   return 0;
 }
@@ -4480,8 +5721,8 @@ if (!__Pyx_RefNanny) {
 
   /* "libpythonWrapper.pyx":1
  * import numpy as np             # <<<<<<<<<<<<<<
+ * import subprocess
  * import cv2
- * import cython
  */
   __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_numpy, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -4490,61 +5731,73 @@ if (!__Pyx_RefNanny) {
 
   /* "libpythonWrapper.pyx":2
  * import numpy as np
+ * import subprocess             # <<<<<<<<<<<<<<
+ * import cv2
+ * import cython
+ */
+  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_subprocess, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 2, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_subprocess, __pyx_t_2) < 0) __PYX_ERR(0, 2, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "libpythonWrapper.pyx":3
+ * import numpy as np
+ * import subprocess
  * import cv2             # <<<<<<<<<<<<<<
  * import cython
  * import time
  */
-  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_cv2, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 2, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_cv2, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 3, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_cv2, __pyx_t_2) < 0) __PYX_ERR(0, 2, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_cv2, __pyx_t_2) < 0) __PYX_ERR(0, 3, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":4
+  /* "libpythonWrapper.pyx":5
  * import cv2
  * import cython
  * import time             # <<<<<<<<<<<<<<
  * from cypes import *
  * import time
  */
-  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_time, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 4, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_ImportDottedModule(__pyx_n_s_time, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_2) < 0) __PYX_ERR(0, 4, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_2) < 0) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "libpythonWrapper.pyx":5
+  /* "libpythonWrapper.pyx":6
  * import cython
  * import time
  * from cypes import *             # <<<<<<<<<<<<<<
  * import time
  * from libc.stdint cimport (uint8_t, uint16_t, uint32_t, uint64_t,
  */
-  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 5, __pyx_L1_error)
+  __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __Pyx_INCREF(__pyx_n_s__7);
-  __Pyx_GIVEREF(__pyx_n_s__7);
-  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s__7)) __PYX_ERR(0, 5, __pyx_L1_error);
-  __pyx_t_3 = __Pyx_Import(__pyx_n_s_cypes, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 5, __pyx_L1_error)
+  __Pyx_INCREF(__pyx_n_s__6);
+  __Pyx_GIVEREF(__pyx_n_s__6);
+  if (__Pyx_PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s__6)) __PYX_ERR(0, 6, __pyx_L1_error);
+  __pyx_t_3 = __Pyx_Import(__pyx_n_s_cypes, __pyx_t_2, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (__pyx_import_star(__pyx_t_3) < 0) __PYX_ERR(0, 5, __pyx_L1_error);
+  if (__pyx_import_star(__pyx_t_3) < 0) __PYX_ERR(0, 6, __pyx_L1_error);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "libpythonWrapper.pyx":6
+  /* "libpythonWrapper.pyx":7
  * import time
  * from cypes import *
  * import time             # <<<<<<<<<<<<<<
  * from libc.stdint cimport (uint8_t, uint16_t, uint32_t, uint64_t,
  *                           int8_t, int16_t, int32_t, int64_t)
  */
-  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_time, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 6, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_ImportDottedModule(__pyx_n_s_time, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 7, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_3) < 0) __PYX_ERR(0, 6, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_3) < 0) __PYX_ERR(0, 7, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
   /* "libpythonWrapper.pyx":1
  * import numpy as np             # <<<<<<<<<<<<<<
+ * import subprocess
  * import cv2
- * import cython
  */
   __pyx_t_3 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
@@ -4779,64 +6032,6 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     return result;
 }
 
-/* PyObjectCall */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
-    PyObject *result;
-    ternaryfunc call = Py_TYPE(func)->tp_call;
-    if (unlikely(!call))
-        return PyObject_Call(func, arg, kw);
-    #if PY_MAJOR_VERSION < 3
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    #else
-    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
-        return NULL;
-    #endif
-    result = (*call)(func, arg, kw);
-    Py_LeaveRecursiveCall();
-    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
-        PyErr_SetString(
-            PyExc_SystemError,
-            "NULL result without error in PyObject_Call");
-    }
-    return result;
-}
-#endif
-
-/* decode_c_string */
-static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
-         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
-         const char* encoding, const char* errors,
-         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
-    Py_ssize_t length;
-    if (unlikely((start < 0) | (stop < 0))) {
-        size_t slen = strlen(cstring);
-        if (unlikely(slen > (size_t) PY_SSIZE_T_MAX)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "c-string too long to convert to Python");
-            return NULL;
-        }
-        length = (Py_ssize_t) slen;
-        if (start < 0) {
-            start += length;
-            if (start < 0)
-                start = 0;
-        }
-        if (stop < 0)
-            stop += length;
-    }
-    if (unlikely(stop <= start))
-        return __Pyx_NewRef(__pyx_empty_unicode);
-    length = stop - start;
-    cstring += start;
-    if (decode_func) {
-        return decode_func(cstring, length, errors);
-    } else {
-        return PyUnicode_Decode(cstring, length, encoding, errors);
-    }
-}
-
 /* GetTopmostException */
 #if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 static _PyErr_StackItem *
@@ -5014,74 +6209,84 @@ bad:
     return -1;
 }
 
-/* PyDictVersioning */
-#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
-    PyObject *dict = Py_TYPE(obj)->tp_dict;
-    return likely(dict) ? __PYX_GET_DICT_VERSION(dict) : 0;
-}
-static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj) {
-    PyObject **dictptr = NULL;
-    Py_ssize_t offset = Py_TYPE(obj)->tp_dictoffset;
-    if (offset) {
+/* PyObjectCall */
 #if CYTHON_COMPILING_IN_CPYTHON
-        dictptr = (likely(offset > 0)) ? (PyObject **) ((char *)obj + offset) : _PyObject_GetDictPtr(obj);
-#else
-        dictptr = _PyObject_GetDictPtr(obj);
-#endif
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    PyObject *result;
+    ternaryfunc call = Py_TYPE(func)->tp_call;
+    if (unlikely(!call))
+        return PyObject_Call(func, arg, kw);
+    #if PY_MAJOR_VERSION < 3
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+    #else
+    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
+        return NULL;
+    #endif
+    result = (*call)(func, arg, kw);
+    Py_LeaveRecursiveCall();
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
     }
-    return (dictptr && *dictptr) ? __PYX_GET_DICT_VERSION(*dictptr) : 0;
-}
-static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version) {
-    PyObject *dict = Py_TYPE(obj)->tp_dict;
-    if (unlikely(!dict) || unlikely(tp_dict_version != __PYX_GET_DICT_VERSION(dict)))
-        return 0;
-    return obj_dict_version == __Pyx_get_object_dict_version(obj);
+    return result;
 }
 #endif
 
-/* GetModuleGlobalName */
-#if CYTHON_USE_DICT_VERSIONS
-static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
-#else
-static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
-#endif
-{
-    PyObject *result;
-#if !CYTHON_AVOID_BORROWED_REFS
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
-    result = _PyDict_GetItem_KnownHash(__pyx_d, name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    } else if (unlikely(PyErr_Occurred())) {
-        return NULL;
+/* SwapException */
+#if CYTHON_FAST_THREAD_STATE
+static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+  #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    tmp_value = exc_info->exc_value;
+    exc_info->exc_value = *value;
+    if (tmp_value == NULL || tmp_value == Py_None) {
+        Py_XDECREF(tmp_value);
+        tmp_value = NULL;
+        tmp_type = NULL;
+        tmp_tb = NULL;
+    } else {
+        tmp_type = (PyObject*) Py_TYPE(tmp_value);
+        Py_INCREF(tmp_type);
+        #if CYTHON_COMPILING_IN_CPYTHON
+        tmp_tb = ((PyBaseExceptionObject*) tmp_value)->traceback;
+        Py_XINCREF(tmp_tb);
+        #else
+        tmp_tb = PyException_GetTraceback(tmp_value);
+        #endif
     }
-#elif CYTHON_COMPILING_IN_LIMITED_API
-    if (unlikely(!__pyx_m)) {
-        return NULL;
-    }
-    result = PyObject_GetAttr(__pyx_m, name);
-    if (likely(result)) {
-        return result;
-    }
-#else
-    result = PyDict_GetItem(__pyx_d, name);
-    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    }
-#endif
-#else
-    result = PyObject_GetItem(__pyx_d, name);
-    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    }
-    PyErr_Clear();
-#endif
-    return __Pyx_GetBuiltinName(name);
+  #elif CYTHON_USE_EXC_INFO_STACK
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    tmp_type = exc_info->exc_type;
+    tmp_value = exc_info->exc_value;
+    tmp_tb = exc_info->exc_traceback;
+    exc_info->exc_type = *type;
+    exc_info->exc_value = *value;
+    exc_info->exc_traceback = *tb;
+  #else
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = *type;
+    tstate->exc_value = *value;
+    tstate->exc_traceback = *tb;
+  #endif
+    *type = tmp_type;
+    *value = tmp_value;
+    *tb = tmp_tb;
 }
+#else
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyErr_GetExcInfo(&tmp_type, &tmp_value, &tmp_tb);
+    PyErr_SetExcInfo(*type, *value, *tb);
+    *type = tmp_type;
+    *value = tmp_value;
+    *tb = tmp_tb;
+}
+#endif
 
 /* PyFunctionFastCall */
 #if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
@@ -5309,59 +6514,258 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 }
 
-/* SwapException */
-#if CYTHON_FAST_THREAD_STATE
-static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-  #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
-    _PyErr_StackItem *exc_info = tstate->exc_info;
-    tmp_value = exc_info->exc_value;
-    exc_info->exc_value = *value;
-    if (tmp_value == NULL || tmp_value == Py_None) {
-        Py_XDECREF(tmp_value);
-        tmp_value = NULL;
-        tmp_type = NULL;
-        tmp_tb = NULL;
-    } else {
-        tmp_type = (PyObject*) Py_TYPE(tmp_value);
-        Py_INCREF(tmp_type);
-        #if CYTHON_COMPILING_IN_CPYTHON
-        tmp_tb = ((PyBaseExceptionObject*) tmp_value)->traceback;
-        Py_XINCREF(tmp_tb);
-        #else
-        tmp_tb = PyException_GetTraceback(tmp_value);
-        #endif
-    }
-  #elif CYTHON_USE_EXC_INFO_STACK
-    _PyErr_StackItem *exc_info = tstate->exc_info;
-    tmp_type = exc_info->exc_type;
-    tmp_value = exc_info->exc_value;
-    tmp_tb = exc_info->exc_traceback;
-    exc_info->exc_type = *type;
-    exc_info->exc_value = *value;
-    exc_info->exc_traceback = *tb;
-  #else
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = *type;
-    tstate->exc_value = *value;
-    tstate->exc_traceback = *tb;
-  #endif
-    *type = tmp_type;
-    *value = tmp_value;
-    *tb = tmp_tb;
+/* PyObjectCallOneArg */
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+    PyObject *args[2] = {NULL, arg};
+    return __Pyx_PyObject_FastCall(func, args+1, 1 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
 }
+
+/* PyDictVersioning */
+#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_tp_dict_version(PyObject *obj) {
+    PyObject *dict = Py_TYPE(obj)->tp_dict;
+    return likely(dict) ? __PYX_GET_DICT_VERSION(dict) : 0;
+}
+static CYTHON_INLINE PY_UINT64_T __Pyx_get_object_dict_version(PyObject *obj) {
+    PyObject **dictptr = NULL;
+    Py_ssize_t offset = Py_TYPE(obj)->tp_dictoffset;
+    if (offset) {
+#if CYTHON_COMPILING_IN_CPYTHON
+        dictptr = (likely(offset > 0)) ? (PyObject **) ((char *)obj + offset) : _PyObject_GetDictPtr(obj);
 #else
-static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyErr_GetExcInfo(&tmp_type, &tmp_value, &tmp_tb);
-    PyErr_SetExcInfo(*type, *value, *tb);
-    *type = tmp_type;
-    *value = tmp_value;
-    *tb = tmp_tb;
+        dictptr = _PyObject_GetDictPtr(obj);
+#endif
+    }
+    return (dictptr && *dictptr) ? __PYX_GET_DICT_VERSION(*dictptr) : 0;
+}
+static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UINT64_T tp_dict_version, PY_UINT64_T obj_dict_version) {
+    PyObject *dict = Py_TYPE(obj)->tp_dict;
+    if (unlikely(!dict) || unlikely(tp_dict_version != __PYX_GET_DICT_VERSION(dict)))
+        return 0;
+    return obj_dict_version == __Pyx_get_object_dict_version(obj);
 }
 #endif
+
+/* GetModuleGlobalName */
+#if CYTHON_USE_DICT_VERSIONS
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
+#else
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
+#endif
+{
+    PyObject *result;
+#if !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
+    result = _PyDict_GetItem_KnownHash(__pyx_d, name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    } else if (unlikely(PyErr_Occurred())) {
+        return NULL;
+    }
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(!__pyx_m)) {
+        return NULL;
+    }
+    result = PyObject_GetAttr(__pyx_m, name);
+    if (likely(result)) {
+        return result;
+    }
+#else
+    result = PyDict_GetItem(__pyx_d, name);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    }
+#endif
+#else
+    result = PyObject_GetItem(__pyx_d, name);
+    __PYX_UPDATE_DICT_CACHE(__pyx_d, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
+    }
+    PyErr_Clear();
+#endif
+    return __Pyx_GetBuiltinName(name);
+}
+
+/* GetItemInt */
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
+    PyObject *r;
+    if (unlikely(!j)) return NULL;
+    r = PyObject_GetItem(o, j);
+    Py_DECREF(j);
+    return r;
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
+                                                              CYTHON_NCP_UNUSED int wraparound,
+                                                              CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    Py_ssize_t wrapped_i = i;
+    if (wraparound & unlikely(i < 0)) {
+        wrapped_i += PyList_GET_SIZE(o);
+    }
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyList_GET_SIZE(o)))) {
+        PyObject *r = PyList_GET_ITEM(o, wrapped_i);
+        Py_INCREF(r);
+        return r;
+    }
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+#else
+    return PySequence_GetItem(o, i);
+#endif
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
+                                                              CYTHON_NCP_UNUSED int wraparound,
+                                                              CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    Py_ssize_t wrapped_i = i;
+    if (wraparound & unlikely(i < 0)) {
+        wrapped_i += PyTuple_GET_SIZE(o);
+    }
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyTuple_GET_SIZE(o)))) {
+        PyObject *r = PyTuple_GET_ITEM(o, wrapped_i);
+        Py_INCREF(r);
+        return r;
+    }
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+#else
+    return PySequence_GetItem(o, i);
+#endif
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
+                                                     CYTHON_NCP_UNUSED int wraparound,
+                                                     CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+    if (is_list || PyList_CheckExact(o)) {
+        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
+            PyObject *r = PyList_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
+    }
+    else if (PyTuple_CheckExact(o)) {
+        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
+            PyObject *r = PyTuple_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
+    } else {
+        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
+        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
+        if (mm && mm->mp_subscript) {
+            PyObject *r, *key = PyInt_FromSsize_t(i);
+            if (unlikely(!key)) return NULL;
+            r = mm->mp_subscript(o, key);
+            Py_DECREF(key);
+            return r;
+        }
+        if (likely(sm && sm->sq_item)) {
+            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
+                Py_ssize_t l = sm->sq_length(o);
+                if (likely(l >= 0)) {
+                    i += l;
+                } else {
+                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
+                        return NULL;
+                    PyErr_Clear();
+                }
+            }
+            return sm->sq_item(o, i);
+        }
+    }
+#else
+    if (is_list || !PyMapping_Check(o)) {
+        return PySequence_GetItem(o, i);
+    }
+#endif
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+}
+
+/* ObjectGetItem */
+#if CYTHON_USE_TYPE_SLOTS
+static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
+    PyObject *runerr = NULL;
+    Py_ssize_t key_value;
+    key_value = __Pyx_PyIndex_AsSsize_t(index);
+    if (likely(key_value != -1 || !(runerr = PyErr_Occurred()))) {
+        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1);
+    }
+    if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetName(Py_TYPE(index));
+        PyErr_Clear();
+        PyErr_Format(PyExc_IndexError,
+            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
+        __Pyx_DECREF_TypeName(index_type_name);
+    }
+    return NULL;
+}
+static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
+    __Pyx_TypeName obj_type_name;
+    if (likely(PyType_Check(obj))) {
+        PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, __pyx_n_s_class_getitem);
+        if (!meth) {
+            PyErr_Clear();
+        } else {
+            PyObject *result = __Pyx_PyObject_CallOneArg(meth, key);
+            Py_DECREF(meth);
+            return result;
+        }
+    }
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    return NULL;
+}
+static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
+    PyTypeObject *tp = Py_TYPE(obj);
+    PyMappingMethods *mm = tp->tp_as_mapping;
+    PySequenceMethods *sm = tp->tp_as_sequence;
+    if (likely(mm && mm->mp_subscript)) {
+        return mm->mp_subscript(obj, key);
+    }
+    if (likely(sm && sm->sq_item)) {
+        return __Pyx_PyObject_GetIndex(obj, key);
+    }
+    return __Pyx_PyObject_GetItem_Slow(obj, key);
+}
+#endif
+
+/* decode_c_string */
+static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
+         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    Py_ssize_t length;
+    if (unlikely((start < 0) | (stop < 0))) {
+        size_t slen = strlen(cstring);
+        if (unlikely(slen > (size_t) PY_SSIZE_T_MAX)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "c-string too long to convert to Python");
+            return NULL;
+        }
+        length = (Py_ssize_t) slen;
+        if (start < 0) {
+            start += length;
+            if (start < 0)
+                start = 0;
+        }
+        if (stop < 0)
+            stop += length;
+    }
+    if (unlikely(stop <= start))
+        return __Pyx_NewRef(__pyx_empty_unicode);
+    length = stop - start;
+    cstring += start;
+    if (decode_func) {
+        return decode_func(cstring, length, errors);
+    } else {
+        return PyUnicode_Decode(cstring, length, encoding, errors);
+    }
+}
 
 /* PyIntBinop */
 #if !CYTHON_COMPILING_IN_PYPY
@@ -5636,7 +7040,7 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 #endif
 static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
-    PyObject *module, *from_list, *star = __pyx_n_s__7;
+    PyObject *module, *from_list, *star = __pyx_n_s__6;
     CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
@@ -6084,7 +7488,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(__pyx_n_s__8);
+        name = __Pyx_NewRef(__pyx_n_s__7);
     }
     return name;
 }

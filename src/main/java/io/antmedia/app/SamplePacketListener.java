@@ -18,17 +18,17 @@ public class SamplePacketListener implements IPacketListener {
 
   @Override
   public AVPacket onVideoPacket(String streamId, AVPacket packet) {
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.onVideoPacket(streamId, packet.address());
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.onVideoPacket(streamId, packet.address());
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
     return packet;
   }
 
   @Override
   public AVPacket onAudioPacket(String streamId, AVPacket packet) {
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.onAudioPacket(streamId, packet.address());
-    NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
+    NativeInterface.PY_WRAPPER.INSTANCE.onAudioPacket(streamId, packet.address());
+    NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
 
     return packet;
   }
