@@ -49,8 +49,6 @@ int main() {
              codecpar->height);
     }
 
-    if (codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-    }
     AVCodecContext *codec_ctx = avcodec_alloc_context3(decoder);
     avcodec_parameters_to_context(codec_ctx, codecpar);
     avcodec_open2(codec_ctx, decoder, NULL);
@@ -59,6 +57,7 @@ int main() {
     AVFrame *pFrame = av_frame_alloc();
 
     const char *streamid = "stream1";
+
     int i = 10;
     while (av_read_frame(avformatctx, pPacket) >= 0) {
       int ret = avcodec_send_packet(codec_ctx, pPacket);
@@ -71,7 +70,7 @@ int main() {
       if (i == 0) {
         exit(0);
       }
-      /*i--;*/
+      /*i--;*/  
     }
   }
 
