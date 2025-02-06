@@ -1,3 +1,5 @@
 /build/
 /libpythonWrapper.cpython-313-x86_64-linux-gnu.so
 /PluginSimulator/build/
+/libpythonWrapper.h
+/libpythonWrapper.c
