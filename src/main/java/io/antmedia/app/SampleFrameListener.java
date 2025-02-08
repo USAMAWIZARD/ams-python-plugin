@@ -17,7 +17,7 @@ public class SampleFrameListener implements IFrameListener{
     //NativeInterface.JNA_RTSP_SERVER.INSTANCE.aquirejil();
     //NativeInterface.JNA_RTSP_SERVER.INSTANCE.onAudioFrame(streamId, audioFrame.address());
     //NativeInterface.JNA_RTSP_SERVER.INSTANCE.releasejil();
-		return audioFrame;
+		return null;
 	}
 
 	@Override
@@ -25,7 +25,7 @@ public class SampleFrameListener implements IFrameListener{
     NativeInterface.PY_WRAPPER.INSTANCE.aquirejil();
     NativeInterface.PY_WRAPPER.INSTANCE.onVideoFrame(streamId, videoFrame.address());
     NativeInterface.PY_WRAPPER.INSTANCE.releasejil();
-		return videoFrame;
+		return null;
 	}
 
 	@Override

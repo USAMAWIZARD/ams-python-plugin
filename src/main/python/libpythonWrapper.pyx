@@ -88,6 +88,27 @@ cdef public void streamFinished(const char* utfstreamid):
 cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):
     global streamidProcessDict
 
+    cdef int width = avframe.width
+    cdef int height = avframe.height
+    cdef int half_width = width // 2
+    cdef int half_height = height // 2
+
+    cdef uint8_t[:] y_plane_memview = <uint8_t[:width * height]> avframe.data[0]
+    cdef uint8_t[:] u_plane_memview = <uint8_t[:half_width * half_height]> avframe.data[1]
+    cdef uint8_t[:] v_plane_memview = <uint8_t[:half_width * half_height]> avframe.data[2]
+
+    y_plane = np.asarray(y_plane_memview).reshape((height, width))
+    u_plane = np.asarray(u_plane_memview).reshape((half_height, half_width))
+    v_plane = np.asarray(v_plane_memview).reshape((half_height, half_width))
+
+    u_resized = cv2.resize(u_plane, (width, height), interpolation=cv2.INTER_NEAREST)
+    v_resized = cv2.resize(v_plane, (width, height), interpolation=cv2.INTER_NEAREST)
+
+    yuv_image = cv2.merge((y_plane, u_resized, v_resized))
+    rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR)
+
+    cv2.rectangle(rgb_image, (20, 20), (240, 240), (255, 0, 0), 2)
+
     try:
         py_streamid = streamid.decode('UTF-8')
         width, height = avframe.width, avframe.height
@@ -96,19 +117,7 @@ cdef public void onVideoFrame(const char* streamid, AVFrame *avframe):
         if not writer:
             return 
 
-        y_plane = np.asarray(<uint8_t[:width * height]> avframe.data[0], dtype=np.uint8).reshape((height, width))
-        u_plane = np.asarray(<uint8_t[:(width//2) * (height//2)]> avframe.data[1], dtype=np.uint8).reshape((height//2, width//2))
-        v_plane = np.asarray(<uint8_t[:(width//2) * (height//2)]> avframe.data[2], dtype=np.uint8).reshape((height//2, width//2))
-
-        u_resized = cv2.resize(u_plane, (width, height), interpolation=cv2.INTER_NEAREST)
-        v_resized = cv2.resize(v_plane, (width, height), interpolation=cv2.INTER_NEAREST)
-
-        yuv_image = cv2.merge((y_plane, u_resized, v_resized))
-        rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR)
-
-        cv2.rectangle(rgb_image, (20, 20), (240, 240), (255, 0, 0), 2)
-
-        writer.write(rgb_image)
+        writer.write(rgb_image)    
     except Exception as e:
         print("Exception occurred in onVideoFrame:", e)
     return
